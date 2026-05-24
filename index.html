@@ -874,6 +874,32 @@
         </div>
     </div>
 
+    <!-- MODAL: DETALHE DA REMESSA (clique no card) -->
+    <div id="modal-detalhe-remessa" class="modal-overlay" style="z-index: 1060;">
+        <div class="modal-content" style="max-width: 860px; width: 95vw;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Detalhe da Remessa</h3>
+                    <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.25rem; flex-wrap:wrap;">
+                        <span style="font-family:monospace; font-size:0.8rem; font-weight:700; color:var(--accent);" id="detalhe-remessa-id">-</span>
+                        <span style="font-size:0.75rem; color:var(--text-muted);">Competência: <strong id="detalhe-remessa-competencia">-</strong></span>
+                        <span style="font-size:0.75rem; color:var(--text-muted);">Fechamento: <strong id="detalhe-remessa-dt">-</strong></span>
+                        <span class="badge badge-warning" id="detalhe-remessa-status">-</span>
+                    </div>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-detalhe-remessa')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding:1.25rem; max-height:65vh; overflow-y:auto;">
+                <div id="detalhe-remessa-body">
+                    <!-- Preenchido dinamicamente -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('modal-detalhe-remessa')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <script src="app.js"></script>
 </body>
 </html>

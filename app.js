@@ -1290,7 +1290,10 @@ function renderLotesRemessa() {
         
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                <span style="font-size:0.8rem; font-weight:700; font-family:monospace; color:var(--text-primary);">${r.id}</span>
+                <button onclick="abrirDetalheRemessa('${r.id}')" style="background:none; border:none; cursor:pointer; padding:0; text-align:left;">
+                    <span style="font-size:0.8rem; font-weight:700; font-family:monospace; color:var(--accent); text-decoration:underline dotted; text-underline-offset:2px;">${r.id}</span>
+                    <span style="font-size:0.6rem; color:var(--text-muted); margin-left:0.35rem;">ver detalhes ↗</span>
+                </button>
                 <span class="badge ${badgeClass}" style="font-size:0.65rem;">${statusLabel}</span>
             </div>
             
@@ -1308,6 +1311,7 @@ function renderLotesRemessa() {
                 ${acoesHtml}
             </div>
         `;
+
         listRemessas.appendChild(card);
     });
 }
@@ -2487,29 +2491,28 @@ function renderConsolidadoRemessasOcis() {
     const examesEmRemessas = [];
     
     db_oci_pacientes.forEach(p => {
-        if (p.id_remessa) {
-            const remessa = db_oci_remessas.find(r => r.id === p.id_remessa);
-            const statusLote = remessa ? remessa.status : 'Em Aberto';
-            const dtInclusaoLote = remessa ? remessa.dt_fechamento : p.dt_criacao;
-            
-            let dtEnvioRemessa = '-';
-            if (remessa && remessa.status !== 'Em Digitação') {
-                dtEnvioRemessa = remessa.dt_fechamento;
-            }
-            
-            p.procedimentos.forEach(proc => {
-                if (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado' || proc.id_remessa) {
-                    examesEmRemessas.push({
-                        paciente: p,
-                        procedimento: proc,
-                        remessa: remessa,
-                        statusLote: statusLote,
-                        dtInclusaoLote: dtInclusaoLote,
-                        dtEnvioRemessa: dtEnvioRemessa
-                    });
+        p.procedimentos.forEach(proc => {
+            // Usa proc.id_remessa (nivel de procedimento)
+            if (proc.id_remessa) {
+                const remessa = db_oci_remessas.find(r => r.id === proc.id_remessa);
+                const statusLote = remessa ? remessa.status : 'Em Aberto';
+                const dtInclusaoLote = remessa ? remessa.dt_fechamento : p.dt_criacao;
+                
+                let dtEnvioRemessa = '-';
+                if (remessa && remessa.status !== 'Em Digitação') {
+                    dtEnvioRemessa = remessa.dt_fechamento;
                 }
-            });
-        }
+                
+                examesEmRemessas.push({
+                    paciente: p,
+                    procedimento: proc,
+                    remessa: remessa,
+                    statusLote: statusLote,
+                    dtInclusaoLote: dtInclusaoLote,
+                    dtEnvioRemessa: dtEnvioRemessa
+                });
+            }
+        });
     });
     
     if (examesEmRemessas.length === 0) {
@@ -2570,7 +2573,7 @@ function renderConsolidadoRemessasOcis() {
                     <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">${formatDate(proc.dt_execucao || '-')}</td>
                     <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">
                         ${formatDate(ex.dtInclusaoLote)}
-                        <span style="display:block; font-size:0.65rem; color:var(--info); font-family:monospace; font-weight:700;">${ex.remessa ? ex.remessa.id : p.id_remessa}</span>
+                        <span style="display:block; font-size:0.65rem; color:var(--info); font-family:monospace; font-weight:700;">${ex.remessa ? ex.remessa.id : proc.id_remessa}</span>
                     </td>
                     <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">
                         ${ex.dtEnvioRemessa !== '-' ? formatDate(ex.dtEnvioRemessa) : `<span class="badge badge-warning" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Aguardando Envio</span>`}
@@ -2621,6 +2624,150 @@ function openConsolidadoOcisModal() {
     openModal('modal-consolidado-remessas');
 }
 
+// ======================================================
+// Modal de Detalhe da Remessa (clique no card da remessa)
+// ======================================================
+function abrirDetalheRemessa(remessaId) {
+    const remessa = db_oci_remessas.find(r => r.id === remessaId);
+    if (!remessa) return;
+    
+    // Seta título e status
+    document.getElementById('detalhe-remessa-id').textContent = remessa.id;
+    document.getElementById('detalhe-remessa-competencia').textContent = remessa.competencia;
+    document.getElementById('detalhe-remessa-dt').textContent = formatDate(remessa.dt_fechamento);
+    
+    let statusClass = 'badge-warning', statusLabel = remessa.status;
+    if (remessa.status === 'Transmitido SUS') { statusClass = 'badge-info'; statusLabel = 'Fechada / Transmitida'; }
+    else if (remessa.status === 'Processada / Aprovada') { statusClass = 'badge-success'; statusLabel = 'Aprovada SUS'; }
+    else if (remessa.status === 'Lote Rejeitado') { statusClass = 'badge-danger'; statusLabel = 'Lote Rejeitado'; }
+    else { statusLabel = 'Em Aberto / Digitação'; }
+    document.getElementById('detalhe-remessa-status').className = `badge ${statusClass}`;
+    document.getElementById('detalhe-remessa-status').textContent = statusLabel;
+    
+    // Coleta pacientes que têm procedimentos nesta remessa
+    const pacientesMap = {};
+    db_oci_pacientes.forEach(p => {
+        p.procedimentos.forEach(proc => {
+            if (proc.id_remessa === remessaId) {
+                if (!pacientesMap[p.id]) {
+                    pacientesMap[p.id] = { paciente: p, procs: [] };
+                }
+                pacientesMap[p.id].procs.push(proc);
+            }
+        });
+    });
+    
+    const container = document.getElementById('detalhe-remessa-body');
+    container.innerHTML = '';
+    
+    const pacientes = Object.values(pacientesMap);
+    
+    if (pacientes.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:var(--text-muted); padding:2rem 0; font-size:0.85rem;">Nenhum paciente vinculado a esta remessa.</p>`;
+    } else {
+        // Agrupa por OCI
+        const porOci = {};
+        pacientes.forEach(({ paciente, procs }) => {
+            const ociKey = paciente.oci_codigo + ' — ' + paciente.oci_nome;
+            if (!porOci[ociKey]) {
+                porOci[ociKey] = { codigo: paciente.oci_codigo, nome: paciente.oci_nome, items: [] };
+            }
+            porOci[ociKey].items.push({ paciente, procs });
+        });
+        
+        Object.values(porOci).forEach(grupo => {
+            // Cabeçalho do grupo OCI
+            const ociBlock = document.createElement('div');
+            ociBlock.style.marginBottom = '1.25rem';
+            ociBlock.style.border = '1px solid var(--border-color)';
+            ociBlock.style.borderRadius = '10px';
+            ociBlock.style.overflow = 'hidden';
+            
+            let pacientesHtml = '';
+            grupo.items.forEach(({ paciente: p, procs }) => {
+                const totalProcs = p.procedimentos.length;
+                const procsNaRemessa = procs.length;
+                const procsFaturados = procs.filter(pr => pr.status_faturamento === 'Faturado' || pr.status_faturamento === 'Reapresentado').length;
+                
+                // Linha de procedimentos
+                let procsHtml = '';
+                procs.forEach(proc => {
+                    let sfBadge = '';
+                    if (proc.status_faturamento === 'Faturado') sfBadge = `<span class="badge badge-success" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Faturado</span>`;
+                    else if (proc.status_faturamento === 'Reapresentado') sfBadge = `<span class="badge badge-info" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Reapresentado</span>`;
+                    else if (proc.status_faturamento === 'Glosado') sfBadge = `<span class="badge badge-danger" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Glosado</span>`;
+                    else sfBadge = `<span class="badge badge-warning" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Pendente</span>`;
+                    
+                    procsHtml += `
+                        <tr style="font-size:0.76rem; border-bottom:1px solid var(--border-color);">
+                            <td style="padding:0.5rem 1rem; padding-left:2.5rem; color:var(--text-secondary);">
+                                ├ ${proc.nome}
+                                <span style="display:block; font-family:monospace; font-size:0.65rem; color:var(--text-muted);">${proc.codigo}</span>
+                            </td>
+                            <td style="padding:0.5rem 0.75rem; white-space:nowrap; font-size:0.7rem;">${formatDate(proc.dt_execucao || '-')}</td>
+                            <td style="padding:0.5rem 0.75rem;">${sfBadge}</td>
+                            <td style="padding:0.5rem 0.75rem; font-size:0.7rem; color:var(--success); font-weight:700;">R$ ${(proc.valor || 0).toFixed(2)}</td>
+                        </tr>`;
+                });
+                
+                pacientesHtml += `
+                    <tr style="background:var(--bg-secondary);">
+                        <td colspan="4" style="padding:0.65rem 1rem;">
+                            <div style="display:flex; align-items:center; justify-content:space-between;">
+                                <div>
+                                    <strong style="font-size:0.85rem;">${p.nm_paciente}</strong>
+                                    <span style="font-size:0.7rem; color:var(--text-muted); margin-left:0.5rem; font-family:monospace;">Pront: ${p.cd_paciente} | ${p.unidade || 'HUCM'}</span>
+                                </div>
+                                <span class="badge ${procsFaturados === procsNaRemessa ? 'badge-success' : 'badge-warning'}" style="font-size:0.68rem;">
+                                    ${procsFaturados}/${procsNaRemessa} proc(s) nesta remessa
+                                    <span style="font-size:0.6rem; opacity:0.7;"> • ${totalProcs} total na OCI</span>
+                                </span>
+                            </div>
+                        </td>
+                    </tr>
+                    ${procsHtml}`;
+            });
+            
+            ociBlock.innerHTML = `
+                <div style="background:linear-gradient(135deg,var(--bg-tertiary),var(--bg-secondary)); border-bottom:1px solid var(--border-color); padding:0.65rem 1rem; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:0.75rem; font-weight:700; color:var(--accent);">${grupo.nome}</span>
+                        <span style="font-family:monospace; font-size:0.65rem; color:var(--text-muted); margin-left:0.5rem;">${grupo.codigo}</span>
+                    </div>
+                    <span class="badge badge-info" style="font-size:0.65rem;">${grupo.items.length} paciente(s)</span>
+                </div>
+                <table style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr style="font-size:0.65rem; text-transform:uppercase; color:var(--text-muted); border-bottom:1px solid var(--border-color); background:rgba(0,0,0,0.02);">
+                            <th style="padding:0.4rem 1rem; font-weight:700;">Paciente / Procedimento</th>
+                            <th style="padding:0.4rem 0.75rem; font-weight:700;">Data Realização</th>
+                            <th style="padding:0.4rem 0.75rem; font-weight:700;">Status</th>
+                            <th style="padding:0.4rem 0.75rem; font-weight:700;">Valor SUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>${pacientesHtml}</tbody>
+                </table>
+            `;
+            container.appendChild(ociBlock);
+        });
+        
+        // Totais
+        const totalProcsRemessa = pacientes.reduce((acc, { procs }) => acc + procs.length, 0);
+        const valorTotalRemessa = pacientes.reduce((acc, { procs }) => acc + procs.reduce((s, pr) => s + (pr.valor || 0), 0), 0);
+        const totaisDiv = document.createElement('div');
+        totaisDiv.style.cssText = 'display:flex; justify-content:flex-end; gap:1.5rem; padding:0.75rem 0.25rem; border-top:2px solid var(--border-color); margin-top:0.5rem;';
+        totaisDiv.innerHTML = `
+            <span style="font-size:0.8rem; color:var(--text-secondary);">Total pacientes: <strong>${pacientes.length}</strong></span>
+            <span style="font-size:0.8rem; color:var(--text-secondary);">Total procedimentos: <strong>${totalProcsRemessa}</strong></span>
+            <span style="font-size:0.85rem; color:var(--success); font-weight:700;">Valor total: R$ ${valorTotalRemessa.toFixed(2)}</span>
+        `;
+        container.appendChild(totaisDiv);
+    }
+    
+    openModal('modal-detalhe-remessa');
+}
+
 window.openConsolidadoOcisModal = openConsolidadoOcisModal;
 window.renderConsolidadoRemessasOcis = renderConsolidadoRemessasOcis;
+window.abrirDetalheRemessa = abrirDetalheRemessa;
 
