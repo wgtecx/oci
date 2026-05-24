@@ -1041,15 +1041,18 @@ function openGerarRemessaModal() {
     let pacientesElegiveis = [];
     
     db_oci_pacientes.forEach(p => {
-        // Verifica se tem algum procedimento com status_faturamento == 'Faturado' ou 'Reapresentado' E sem id_remessa
+        // Verifica se tem algum procedimento com status_faturamento == 'Faturado' ou 'Reapresentado' E sem id_remessa (a nível de procedimento)
         const examesFaturados = p.procedimentos.filter(proc => 
             (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') && !proc.id_remessa
         );
         
         if (examesFaturados.length > 0) {
+            // Verifica se o paciente já tem uma remessa aberta (em digitação) para sugerir como destino
+            const remessaAbertaPaciente = getRemessaAbertaDoPaciente(p);
             pacientesElegiveis.push({
                 paciente: p,
-                exames: examesFaturados
+                exames: examesFaturados,
+                remessaExistente: remessaAbertaPaciente
             });
         }
     });
@@ -1060,12 +1063,15 @@ function openGerarRemessaModal() {
         pacientesElegiveis.forEach((item, index) => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'checklist-item';
+            const remessaTag = item.remessaExistente
+                ? `<span style="color:var(--primary);font-weight:700;">↪ Remessa existente: ${item.remessaExistente.id}</span>`
+                : '';
             itemDiv.innerHTML = `
                 <input type="checkbox" id="rem-pac-${index}" value="${item.paciente.id}" checked>
                 <div class="checklist-item-label">
                     <label for="rem-pac-${index}"><strong>${item.paciente.nm_paciente}</strong> (${item.paciente.id})</label>
                     <span class="checklist-item-code">
-                        ${item.paciente.oci_nome} • <strong>${item.exames.length} exames prontos</strong>
+                        ${item.paciente.oci_nome} • <strong>${item.exames.length} novo(s) exame(s) prontos</strong> ${remessaTag}
                     </span>
                 </div>
             `;
@@ -1095,39 +1101,51 @@ function handleSaveRemessa(e) {
         return;
     }
     
-    // Vincula a remessa diretamente ao PACIENTE (Controle de Unicidade por Paciente)
+    // Vincula a remessa ao nível de PROCEDIMENTO (permite múltiplas remessas por paciente)
     let totalItensRemetidos = 0;
     let valorTotalRemetido = 0;
     
     db_oci_pacientes = db_oci_pacientes.map(p => {
         if (pacientesSelecionados.includes(p.id)) {
-            // Conta os exames faturados deste paciente que estão sendo consolidados no lote
-            p.procedimentos.forEach(proc => {
-                if (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') {
+            // Determina o id_remessa destino: usa remessa existente aberta do paciente ou a nova
+            const remessaExistente = getRemessaAbertaDoPaciente(p);
+            const idRemessaDestino = remessaExistente ? remessaExistente.id : remessaId;
+            
+            // Marca o id_remessa em cada procedimento faturado SEM remessa ainda
+            const procsAtualizados = p.procedimentos.map(proc => {
+                if ((proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') && !proc.id_remessa) {
                     totalItensRemetidos++;
                     valorTotalRemetido += proc.valor || 30.00;
+                    return { ...proc, id_remessa: idRemessaDestino };
                 }
+                return proc;
             });
-            return { ...p, id_remessa: remessaId };
+            return { ...p, procedimentos: procsAtualizados };
         }
         return p;
     });
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
     
-    // Cria a remessa no banco (inicialmente aberta em digitação)
-    const novaRemessa = {
-        id: remessaId,
-        competencia: competencia,
-        dt_fechamento: getHoje(),
-        qtd_contas: pacientesSelecionados.length,
-        qtd_procedimentos: totalItensRemetidos,
-        valor_total: valorTotalRemetido,
-        status: 'Em Digitação' // Em Digitação, Transmitido SUS, Processada / Aprovada, Lote Rejeitado
-    };
+    // Cria a nova remessa no banco apenas se ela ainda não existir
+    // (pacientes com remessa existente aberta já foram redirecionados acima)
+    const remessaJaExiste = db_oci_remessas.find(r => r.id === remessaId);
+    if (!remessaJaExiste) {
+        const novaRemessa = {
+            id: remessaId,
+            competencia: competencia,
+            dt_fechamento: getHoje(),
+            qtd_contas: 0,
+            qtd_procedimentos: 0,
+            valor_total: 0,
+            status: 'Em Digitação'
+        };
+        db_oci_remessas.push(novaRemessa);
+    }
     
-    db_oci_remessas.push(novaRemessa);
     saveDb('oci_db_remessas', db_oci_remessas);
+    // Recalcula totais de todas as remessas após associação
+    recalcularRemessasValores();
     
     closeModal('modal-gerar-remessa');
     renderFaturamentoView();
@@ -1153,19 +1171,24 @@ function renderLotesRemessa() {
         let statusLabel = r.status;
         let acoesHtml = '';
         
-        // Busca pacientes deste lote
-        const pacientesLote = db_oci_pacientes.filter(p => p.id_remessa === r.id);
+        // Busca pacientes que têm ao menos 1 procedimento nesta remessa
+        const pacientesIds = new Set();
+        db_oci_pacientes.forEach(p => {
+            p.procedimentos.forEach(proc => {
+                if (proc.id_remessa === r.id) pacientesIds.add(p.id);
+            });
+        });
+        const pacientesLote = db_oci_pacientes.filter(p => pacientesIds.has(p.id));
         
         let listaPacientesHtml = '';
         pacientesLote.forEach(p => {
-            // Calcula prontidão da conta do paciente
-            const examesProntos = p.procedimentos.filter(proc => proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado').length;
-            const examesTotal = p.procedimentos.length;
-            const estaPronto = examesProntos === examesTotal;
+            // Calcula prontidão: exames desta remessa vs. todos os exames do paciente
+            const examesNestaRemessa = p.procedimentos.filter(proc => proc.id_remessa === r.id).length;
+            const examesProntos = p.procedimentos.filter(proc => proc.id_remessa === r.id && (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado')).length;
             
-            let statusContaBadge = estaPronto 
+            let statusContaBadge = examesProntos === examesNestaRemessa
                 ? '<span class="badge badge-success" style="font-size:0.6rem; padding:0.1rem 0.3rem;">100% Auditado</span>'
-                : `<span class="badge badge-warning" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Pendente (${examesProntos}/${examesTotal})</span>`;
+                : `<span class="badge badge-warning" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Pendente (${examesProntos}/${examesNestaRemessa})</span>`;
             
             let btnTransferir = '';
             if (r.status === 'Em Digitação') {
@@ -1261,11 +1284,22 @@ function renderLotesRemessa() {
 
 function fecharRemessa(remessaId) {
     // REGRA DE SEGURANÇA SUS: Só permite fechar o lote se NÃO houver exames pendentes para nenhum paciente do lote
-    const pacientesLote = db_oci_pacientes.filter(p => p.id_remessa === remessaId);
+    const pacientesIds = new Set();
+    db_oci_pacientes.forEach(p => {
+        p.procedimentos.forEach(proc => {
+            if (proc.id_remessa === remessaId) pacientesIds.add(p.id);
+        });
+    });
+    const pacientesLote = db_oci_pacientes.filter(p => pacientesIds.has(p.id));
     
     let pendencias = [];
     pacientesLote.forEach(p => {
-        const examesPendentes = p.procedimentos.filter(proc => proc.status_faturamento !== 'Faturado' && proc.status_faturamento !== 'Reapresentado');
+        // Conta procedimentos DESTA remessa que ainda estão pendentes
+        const examesPendentes = p.procedimentos.filter(proc => 
+            proc.id_remessa === remessaId &&
+            proc.status_faturamento !== 'Faturado' && 
+            proc.status_faturamento !== 'Reapresentado'
+        );
         if (examesPendentes.length > 0) {
             pendencias.push({
                 paciente: p.nm_paciente,
@@ -1320,12 +1354,15 @@ function excluirRemessa(remessaId) {
     db_oci_remessas = db_oci_remessas.filter(r => r.id !== remessaId);
     saveDb('oci_db_remessas', db_oci_remessas);
     
-    // Remove o id_remessa dos pacientes correspondentes
+    // Remove o id_remessa dos procedimentos correspondentes a esta remessa
     db_oci_pacientes = db_oci_pacientes.map(p => {
-        if (p.id_remessa === remessaId) {
-            return { ...p, id_remessa: null };
-        }
-        return p;
+        const procsAtualizados = p.procedimentos.map(proc => {
+            if (proc.id_remessa === remessaId) {
+                return { ...proc, id_remessa: null };
+            }
+            return proc;
+        });
+        return { ...p, procedimentos: procsAtualizados };
     });
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
@@ -1346,19 +1383,20 @@ function auditarLote(remessaId, novoStatus) {
     
     // Se o lote for rejeitado, simula a volta dos itens para faturamento
     if (novoStatus === 'Lote Rejeitado') {
-        // Encontra os pacientes do lote e marca os itens de faturamento do lote de volta para "Glosado" pelo SUS
+        // Marca os procedimentos do lote como Glosado e remove o id_remessa deles
         db_oci_pacientes = db_oci_pacientes.map(p => {
-            if (p.id_remessa === remessaId) {
-                const procsAtualizados = p.procedimentos.map(proc => {
+            const procsAtualizados = p.procedimentos.map(proc => {
+                if (proc.id_remessa === remessaId) {
                     return { 
                         ...proc, 
+                        id_remessa: null,
                         status_faturamento: 'Glosado', 
                         motivo_glosa: 'Inconsistência no Lote / Glosa Integral de Lote pelo SUS' 
                     };
-                });
-                return { ...p, id_remessa: null, procedimentos: procsAtualizados };
-            }
-            return p;
+                }
+                return proc;
+            });
+            return { ...p, procedimentos: procsAtualizados };
         });
         saveDb('oci_db_pacientes', db_oci_pacientes);
         alert(`O lote ${remessaId} foi recusado na auditoria do SUS!\nAs cobranças de todos os pacientes voltaram para a fila do faturamento com status de GLOSA.`);
@@ -1392,8 +1430,14 @@ function exportarRemessaTXT(remessaId) {
     let contProc = 0;
     
     db_oci_pacientes.forEach(p => {
-        if (p.id_remessa === remessaId) {
-            contPac++;
+        // Apenas inclui procedimentos desta remessa
+        const procsDestaRemessa = p.procedimentos.filter(proc => 
+            proc.id_remessa === remessaId &&
+            (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado')
+        );
+        if (procsDestaRemessa.length === 0) return;
+        
+        contPac++;
             
             // REGISTRO IDENTIFICAÇÃO PACIENTE (Tipo 01)
             const cpfLimpo = p.nr_cpf.replace(/\D/g, '');
@@ -1417,15 +1461,12 @@ function exportarRemessaTXT(remessaId) {
             content += '02' + fZero(numApac, 15) + fZero(codPrincipal, 10) + fSpace(cidPrincipal, 4) + fZero(dtIniApac, 8) + fZero(dtFimApac, 8) + fSpace('', 103) + '\r\n';
             
             // REGISTRO PROCEDIMENTOS SECUNDÁRIOS EXECUTADOS (Tipo 03)
-            p.procedimentos.forEach(proc => {
-                if (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') {
-                    contProc++;
-                    const codProc = proc.codigo.replace(/\D/g, '');
-                    const dtExec = proc.dt_execucao ? proc.dt_execucao.replace(/-/g, '') : dtGeracao;
-                    content += '03' + fZero(codProc, 10) + fZero(proc.qtd, 3) + fZero(dtExec, 8) + fZero(numApac, 15) + fSpace('', 112) + '\r\n';
-                }
+            procsDestaRemessa.forEach(proc => {
+                contProc++;
+                const codProc = proc.codigo.replace(/\D/g, '');
+                const dtExec = proc.dt_execucao ? proc.dt_execucao.replace(/-/g, '') : dtGeracao;
+                content += '03' + fZero(codProc, 10) + fZero(proc.qtd, 3) + fZero(dtExec, 8) + fZero(numApac, 15) + fSpace('', 112) + '\r\n';
             });
-        }
     });
     
     // REGISTRO TRAILER (Tipo 99)
@@ -1514,10 +1555,16 @@ function handleSaveTransferencia(e) {
         loteDestinoId = destinoOpt;
     }
     
-    // Faz a transferência do paciente no banco
+    // Faz a transferência: move o id_remessa de todos os procedimentos do paciente que estão na remessa de origem
     db_oci_pacientes = db_oci_pacientes.map(p => {
         if (p.id === pacienteId) {
-            return { ...p, id_remessa: loteDestinoId };
+            const procsAtualizados = p.procedimentos.map(proc => {
+                if (proc.id_remessa === loteOrigemId) {
+                    return { ...proc, id_remessa: loteDestinoId };
+                }
+                return proc;
+            });
+            return { ...p, procedimentos: procsAtualizados };
         }
         return p;
     });
@@ -1538,14 +1585,16 @@ function handleSaveTransferencia(e) {
 
 function recalcularRemessasValores() {
     db_oci_remessas = db_oci_remessas.map(r => {
-        const pacientesLote = db_oci_pacientes.filter(p => p.id_remessa === r.id);
-        
+        // Encontra todos os procedimentos de qualquer paciente que pertencem a esta remessa
+        const pacientesNoLote = new Set();
         let totalProcs = 0;
         let totalVal = 0;
         
-        pacientesLote.forEach(p => {
+        db_oci_pacientes.forEach(p => {
             p.procedimentos.forEach(proc => {
-                if (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') {
+                if (proc.id_remessa === r.id &&
+                    (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado')) {
+                    pacientesNoLote.add(p.id);
                     totalProcs++;
                     totalVal += proc.valor || 30.00;
                 }
@@ -1554,13 +1603,27 @@ function recalcularRemessasValores() {
         
         return {
             ...r,
-            qtd_contas: pacientesLote.length,
+            qtd_contas: pacientesNoLote.size,
             qtd_procedimentos: totalProcs,
             valor_total: totalVal
         };
     });
     
     saveDb('oci_db_remessas', db_oci_remessas);
+}
+
+// Função auxiliar: retorna a remessa aberta (Em Digitação) do paciente, se existir
+function getRemessaAbertaDoPaciente(p) {
+    // Encontra a remessa associada a qualquer procedimento já enviado do paciente que ainda está aberta
+    for (const proc of p.procedimentos) {
+        if (proc.id_remessa) {
+            const remessa = db_oci_remessas.find(r => r.id === proc.id_remessa);
+            if (remessa && remessa.status === 'Em Digitação') {
+                return remessa;
+            }
+        }
+    }
+    return null;
 }
 
 // 14. Função de Reinicialização (Reset do Simulador)
@@ -2061,16 +2124,39 @@ function renderPanoramaGeral() {
             } else {
                 statusFatHtml = `<span class="badge badge-warning" style="font-size:0.65rem;">Lote Aberto (${p.id_remessa})</span>`;
             }
-        } else if (totalGlosados > 0) {
-            statusFatHtml = `<span class="badge badge-danger" style="font-size:0.65rem;">Glosa Ativa (${totalGlosados} itens)</span>`;
-        } else if (totalFaturados === totalP) {
-            statusFatHtml = `<span class="badge badge-success" style="font-size:0.65rem;">Aguardando Lote</span>`;
-        } else if (totalFaturados > 0) {
-            statusFatHtml = `<span class="badge badge-info" style="font-size:0.65rem;">Parcial Faturado (${totalFaturados}/${totalP})</span>`;
-        } else if (realizadosP > 0) {
-            statusFatHtml = `<span class="badge badge-warning" style="font-size:0.65rem;">Pendente Faturamento</span>`;
         } else {
-            statusFatHtml = `<span class="badge badge-warning" style="font-size:0.65rem;">Em Execução</span>`;
+            // Verifica se algum procedimento do paciente está em alguma remessa
+            const procsEmRemessa = p.procedimentos.filter(proc => proc.id_remessa);
+            if (procsEmRemessa.length > 0) {
+                // Pega o id da remessa mais recente com proc deste paciente
+                const idRemessaRef = procsEmRemessa[procsEmRemessa.length - 1].id_remessa;
+                const remessa = db_oci_remessas.find(r => r.id === idRemessaRef);
+                const statusRem = remessa ? remessa.status : 'Em Lote';
+                const procsForaRemessa = p.procedimentos.filter(proc => !proc.id_remessa && (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado')).length;
+                if (statusRem === 'Processada / Aprovada') {
+                    statusFatHtml = procsForaRemessa > 0
+                        ? `<span class="badge badge-info" style="font-size:0.65rem;">+${procsForaRemessa} proc(s) pendentes de remessa</span>`
+                        : `<span class="badge badge-success" style="font-size:0.65rem;">Aprovado SUS (${idRemessaRef})</span>`;
+                } else if (statusRem === 'Lote Rejeitado') {
+                    statusFatHtml = `<span class="badge badge-danger" style="font-size:0.65rem;">Lote Recusado (${idRemessaRef})</span>`;
+                } else if (statusRem === 'Transmitido SUS') {
+                    statusFatHtml = `<span class="badge badge-info" style="font-size:0.65rem;">Em Validação (${idRemessaRef})</span>`;
+                } else {
+                    statusFatHtml = procsForaRemessa > 0
+                        ? `<span class="badge badge-warning" style="font-size:0.65rem;">Lote Aberto + ${procsForaRemessa} novo(s)</span>`
+                        : `<span class="badge badge-warning" style="font-size:0.65rem;">Lote Aberto (${idRemessaRef})</span>`;
+                }
+            } else if (totalGlosados > 0) {
+                statusFatHtml = `<span class="badge badge-danger" style="font-size:0.65rem;">Glosa Ativa (${totalGlosados} itens)</span>`;
+            } else if (totalFaturados === totalP) {
+                statusFatHtml = `<span class="badge badge-success" style="font-size:0.65rem;">Aguardando Lote</span>`;
+            } else if (totalFaturados > 0) {
+                statusFatHtml = `<span class="badge badge-info" style="font-size:0.65rem;">Parcial Faturado (${totalFaturados}/${totalP})</span>`;
+            } else if (realizadosP > 0) {
+                statusFatHtml = `<span class="badge badge-warning" style="font-size:0.65rem;">Pendente Faturamento</span>`;
+            } else {
+                statusFatHtml = `<span class="badge badge-warning" style="font-size:0.65rem;">Em Execução</span>`;
+            }
         }
         
         // LINHA DO TEMPO DA EVOLUÇÃO
