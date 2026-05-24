@@ -1212,13 +1212,24 @@ function renderLotesRemessa() {
         
         let listaPacientesHtml = '';
         pacientesLote.forEach(p => {
-            // Calcula prontidão: exames desta remessa vs. todos os exames do paciente
+            // Progresso geral da OCI do paciente
+            const totalOci = p.procedimentos.length;
+            const realizadosOci = p.procedimentos.filter(proc => proc.status === 'Realizado').length;
+            const faturadosOci = p.procedimentos.filter(proc => proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado').length;
+            const pendentesOci = totalOci - faturadosOci;
+            
+            // Progresso específico desta remessa
             const examesNestaRemessa = p.procedimentos.filter(proc => proc.id_remessa === r.id).length;
             const examesProntos = p.procedimentos.filter(proc => proc.id_remessa === r.id && (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado')).length;
             
             let statusContaBadge = examesProntos === examesNestaRemessa
-                ? '<span class="badge badge-success" style="font-size:0.6rem; padding:0.1rem 0.3rem;">100% Auditado</span>'
-                : `<span class="badge badge-warning" style="font-size:0.6rem; padding:0.1rem 0.3rem;">Pendente (${examesProntos}/${examesNestaRemessa})</span>`;
+                ? `<span class="badge badge-success" style="font-size:0.6rem; padding:0.1rem 0.3rem;">✓ ${examesProntos}/${examesNestaRemessa} nesta remessa</span>`
+                : `<span class="badge badge-warning" style="font-size:0.6rem; padding:0.1rem 0.3rem;">⏳ ${examesProntos}/${examesNestaRemessa} nesta remessa</span>`;
+            
+            // Badge de pendentes totais na OCI
+            const pendenteBadge = pendentesOci > 0
+                ? `<span class="badge badge-info" style="font-size:0.58rem; padding:0.08rem 0.3rem; margin-left:0.2rem;" title="${pendentesOci} proc(s) ainda pendentes de faturamento na OCI">${pendentesOci} pendente${pendentesOci > 1 ? 's' : ''}</span>`
+                : '';
             
             let btnTransferir = '';
             if (r.status === 'Em Digitação') {
@@ -1226,10 +1237,14 @@ function renderLotesRemessa() {
             }
             
             listaPacientesHtml += `
-                <div style="font-size:0.75rem; display:flex; justify-content:space-between; align-items:center; padding:0.25rem 0; border-bottom:1px solid rgba(0,0,0,0.04);">
-                    <span style="max-width:55%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">• ${p.nm_paciente}</span>
-                    <div style="display:flex; align-items:center;">
+                <div style="font-size:0.75rem; display:flex; justify-content:space-between; align-items:center; padding:0.3rem 0; border-bottom:1px solid rgba(0,0,0,0.04);">
+                    <div>
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">• <strong>${p.nm_paciente}</strong></span>
+                        <span style="display:block; font-size:0.65rem; color:var(--text-muted); margin-left:0.75rem;">${realizadosOci}/${totalOci} proc(s) realizados na OCI • ${faturadosOci} faturado(s)</span>
+                    </div>
+                    <div style="display:flex; align-items:center; flex-wrap:wrap; gap:0.15rem; justify-content:flex-end;">
                         ${statusContaBadge}
+                        ${pendenteBadge}
                         ${btnTransferir}
                     </div>
                 </div>
