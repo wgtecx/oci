@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plataforma OCI - Oferta de Cuidado Integrado</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="logo-container">
+            <img src="Logo_Feluma.png" alt="Logo Feluma" class="logo-img">
+            <div class="logo-text">
+                <h1>Painel OCI</h1>
+                <span>Oferta de Cuidado Integrado (SUS)</span>
+            </div>
+        </div>
+
+        <!-- Seletor de Perfis -->
+        <div class="profile-tabs">
+            <button class="tab-btn active" data-profile="medico">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
+                Médico
+            </button>
+            <button class="tab-btn" data-profile="navegacao">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
+                Navegação
+            </button>
+            <button class="tab-btn" data-profile="faturamento">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                Faturamento
+            </button>
+        </div>
+
+        <!-- Botão Panorama Geral (Acessível a todos) -->
+        <button class="btn btn-sm" id="btn-panorama-geral" style="margin-left: auto; margin-right: 1rem; background-color: var(--accent-glow); color: var(--accent); border-color: var(--accent); font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="openPanoramaGeralModal()">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-top:-1px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
+            Panorama Geral OCI
+        </button>
+
+        <!-- Informações do Usuário Ativo -->
+        <div class="user-badge">
+            <div class="user-avatar" id="avatar-sigla">DR</div>
+            <div class="user-info">
+                <span class="user-name">Dr. Fernando Silva</span>
+                <span class="user-role">Médico Prestador</span>
+            </div>
+            <button class="btn btn-sm btn-logout" id="btn-logout" style="margin-left: 0.75rem; background-color: var(--danger-glow); color: var(--danger); border-color: var(--danger); font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                Sair
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        
+        <!-- VISÃO 1: MÉDICO -->
+        <section id="view-medico" class="view-section active">
+            <div class="section-header">
+                <div class="section-title">
+                    <h2>Meus Atendimentos</h2>
+                    <p>Selecione um atendimento realizado no SoulMV (Oracle) para incluir o paciente em uma linha de cuidado OCI do SUS.</p>
+                </div>
+            </div>
+
+            <!-- Stats Rápidos -->
+            <div class="stats-grid">
+                <div class="stat-card blue">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-medico-pendentes">0</div>
+                        <div class="stat-label">Atendimentos Sem OCI</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filtros -->
+            <div class="actions-bar">
+                <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="search-medico" class="search-input" placeholder="Buscar por paciente ou atendimento..." oninput="resetPageMedicoAndRender()">
+                    <div style="display:inline-flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+                        <label for="medico-date-start">Período de:</label>
+                        <input type="date" id="medico-date-start" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageMedicoAndRender()">
+                        <label for="medico-date-end">até:</label>
+                        <input type="date" id="medico-date-end" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageMedicoAndRender()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabela de Atendimentos -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Nº Atendimento (SoulMV)</th>
+                            <th>Unidade</th>
+                            <th>Data Atend.</th>
+                            <th>Prontuário</th>
+                            <th>Paciente</th>
+                            <th>Especialidade</th>
+                            <th>Status OCI</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-medico-body">
+                        <!-- Gerado Dinamicamente -->
+                    </tbody>
+                </table>
+            </div>
+            <!-- Paginação do Médico -->
+            <div id="medico-pagination" class="pagination-container">
+                <!-- Gerado dinamicamente via JS -->
+            </div>
+        </section>
+
+        <!-- VISÃO 2: NAVEGAÇÃO -->
+        <section id="view-navegacao" class="view-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <h2>Navegação de Pacientes (Linha de Cuidado OCI)</h2>
+                    <p>Acompanhe os procedimentos solicitados pelos médicos, realize os agendamentos e registre a data de conclusão.</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card info">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-navegacao-ativas">0</div>
+                        <div class="stat-label">Pacientes Ativos em OCI</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="actions-bar">
+                <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="search-navegacao" class="search-input" placeholder="Buscar por paciente ou código OCI..." oninput="resetPageNavegacaoAndRender()">
+                    <div style="display:inline-flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+                        <label for="navegacao-date-start">Inclusão OCI de:</label>
+                        <input type="date" id="navegacao-date-start" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageNavegacaoAndRender()">
+                        <label for="navegacao-date-end">até:</label>
+                        <input type="date" id="navegacao-date-end" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageNavegacaoAndRender()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Grade de Cartões de Navegação -->
+            <div class="kanban-board" id="navegacao-cards">
+                <!-- Gerado Dinamicamente -->
+            </div>
+            <!-- Paginação da Navegação -->
+            <div id="navegacao-pagination" class="pagination-container">
+                <!-- Gerado dinamicamente via JS -->
+            </div>
+        </section>
+
+        <!-- VISÃO 3: FATURAMENTO -->
+        <section id="view-faturamento" class="view-section">
+            <div class="section-header">
+                <div class="section-title">
+                    <h2>Auditoria e Faturamento SUS (APAC OCI)</h2>
+                    <p>Controle as contas pacientes criadas automaticamente. Valide a integridade de dados e envie os exames concluídos ao SUS.</p>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card green">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-faturamento-faturados">0</div>
+                        <div class="stat-label">Exames Prontos/Faturados</div>
+                    </div>
+                </div>
+                <div class="stat-card red">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-faturamento-glosados">0</div>
+                        <div class="stat-label">Glosas Ativas (Recusadas)</div>
+                    </div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-icon">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="stat-faturamento-remessas">0</div>
+                        <div class="stat-label">Lotes de Remessa Fechados</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Layout Duas Colunas para Auditoria e Lotes -->
+            <div style="display: grid; grid-template-columns: 2.2fr 1fr; gap: 1.5rem; align-items: start;">
+                
+                <!-- Coluna Esquerda: Contas Pacientes -->
+                <div>
+                    <div class="actions-bar" style="margin-bottom: 1rem;">
+                        <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center; flex:1;">
+                            <input type="text" id="search-faturamento" class="search-input" placeholder="Buscar por paciente ou código OCI..." oninput="resetPageFaturamentoAndRender()" style="max-width:240px;">
+                            <div style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.78rem; color:var(--text-secondary);">
+                                <label for="faturamento-date-start">OCI de:</label>
+                                <input type="date" id="faturamento-date-start" class="select-input" style="padding:0.35rem 0.5rem; font-size:0.78rem;" onchange="resetPageFaturamentoAndRender()">
+                                <label for="faturamento-date-end">até:</label>
+                                <input type="date" id="faturamento-date-end" class="select-input" style="padding:0.35rem 0.5rem; font-size:0.78rem;" onchange="resetPageFaturamentoAndRender()">
+                            </div>
+                        </div>
+                        <button class="btn" onclick="openGerenciarOcisModal()" style="background-color: var(--info-glow); color: var(--info); border-color: var(--info); font-size: 0.78rem; padding: 0.45rem 0.75rem;">
+                            Tabela OCI
+                        </button>
+                    </div>
+                    
+                    <div id="faturamento-contas-list">
+                        <!-- Gerado Dinamicamente -->
+                    </div>
+                    <!-- Paginação do Faturamento -->
+                    <div id="faturamento-pagination" class="pagination-container" style="margin-top: 1rem;">
+                        <!-- Gerado dinamicamente via JS -->
+                    </div>
+                </div>
+                
+                <!-- Coluna Direita: Painel de Lotes e Faturas -->
+                <div>
+                    <div style="background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.25rem; box-shadow: var(--card-shadow);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                            <h3 style="font-size: 1rem; font-weight: 700;">Lotes de Remessa (SUS)</h3>
+                            <div style="display: flex; gap: 0.35rem;">
+                                <button class="btn btn-primary btn-sm" onclick="openGerarRemessaModal()">Criar Remessa</button>
+                                <button class="btn btn-sm" onclick="openConsolidadoOcisModal()" style="background-color: var(--success-glow); color: var(--success); border-color: var(--success); font-size: 0.75rem; padding: 0.35rem 0.5rem;" title="Visualizar Consolidação de Remessas agrupadas por OCI">Consolidado OCI</button>
+                            </div>
+                        </div>
+                        </div>
+                        
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                            Agrupe contas pacientes faturadas e consolide uma remessa (lote de faturamento SUS) para envio ao SIA/SUS.
+                        </p>
+                        
+                        <div id="lista-lotes-remessa" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Gerado Dinamicamente -->
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <p>&copy; 2026 Plataforma de Gestão OCI. Todos os direitos reservados. Regulamentado conforme Portarias SAES/MS 1.822 e 1.824 do SUS.</p>
+        <button class="btn btn-sm" style="margin-top:0.75rem; background-color:var(--danger-glow); color:#f87171; border-color:var(--danger);" onclick="resetSimulador()">Reiniciar Protótipo (Limpar Dados)</button>
+    </footer>
+
+    <!-- MODAL 1: INCLUSÃO DE OCI (MÉDICO) -->
+    <div id="modal-oci" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Prescrever Oferta de Cuidado Integrado (OCI)</h3>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="form-inclusao-oci">
+                <div class="modal-body">
+                    <!-- Resumo do Paciente -->
+                    <div class="paciente-info-summary">
+                        <div class="info-item">
+                            <label>Paciente</label>
+                            <span id="modal-paciente-nome">Paciente Exemplo</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Prontuário</label>
+                            <span id="modal-paciente-pront">12345</span>
+                        </div>
+                        <div class="info-item">
+                            <label>CPF</label>
+                            <span id="modal-paciente-cpf">000.000.000-00</span>
+                        </div>
+                        <div class="info-item">
+                            <label>Cartão SUS (CNS)</label>
+                            <span id="modal-paciente-cns">00000000000000</span>
+                        </div>
+                    </div>
+
+                    <!-- Seleção do tipo de OCI -->
+                    <div class="form-group">
+                        <label for="select-oci-tipo">Selecionar Linha de Cuidado OCI</label>
+                        <select id="select-oci-tipo" class="select-input" required>
+                            <!-- Dinâmico conforme especialidade -->
+                        </select>
+                    </div>
+
+                    <!-- Checklist de Procedimentos -->
+                    <div class="form-group">
+                        <label>Checklist de Procedimentos Secundários</label>
+                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.5rem;">
+                            Estes procedimentos serão associados à APAC principal e enviados na Conta Paciente com status "Pendente" para acompanhamento da navegação.
+                        </p>
+                        <div class="procedures-checklist" id="checklist-container">
+                            <!-- Gerado dinamicamente via JS -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar e Iniciar Linha OCI</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 2: ACOMPANHAMENTO DA NAVEGAÇÃO -->
+    <div id="modal-acompanhar" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Acompanhar Cuidado OCI</h3>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="paciente-info-summary">
+                    <div class="info-item">
+                        <label>Paciente</label>
+                        <span id="acomp-paciente-nome">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Linha de Cuidado</label>
+                        <span id="acomp-oci-nome">-</span>
+                    </div>
+                    <div class="info-item" style="grid-column: span 2;">
+                        <label>Data de Inclusão da OCI</label>
+                        <span id="acomp-dt-criacao">-</span>
+                    </div>
+                </div>
+
+                <div style="font-size:0.875rem; font-weight:700; margin-bottom:0.75rem; color:var(--text-secondary); text-transform:uppercase;">
+                    Procedimentos da Linha
+                </div>
+                <div id="acomp-procedimentos-lista" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <!-- Dinâmico -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-close-modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: REGISTRO DE EXECUÇÃO (NAVEGAÇÃO) -->
+    <div id="modal-executar" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Atualizar Procedimento</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-executar')">&times;</button>
+            </div>
+            <form id="form-execucao-proc">
+                <input type="hidden" id="exec-proc-index">
+                <div class="modal-body">
+                    <p style="font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem;" id="exec-proc-nome">-</p>
+                    
+                    <div class="form-group">
+                        <label for="select-exec-status">Status do Procedimento</label>
+                        <select id="select-exec-status" class="select-input" required>
+                            <option value="Agendado">Agendado</option>
+                            <option value="Realizado">Realizado / Concluído</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="input-dt-realizacao">Data de Realização</label>
+                        <input type="date" id="input-dt-realizacao" class="select-input" required>
+                    </div>
+
+                    <!-- Campo específico para Portaria Oncologia (Atributo 055) -->
+                    <div class="form-group" id="onco-required-fields" style="display:none;">
+                        <div class="alert-box alert-box-warning">
+                            Regra SUS (Portaria 1.824): Para biópsias/anatomopatológicos, é obrigatório preencher a data do laudo da neoplasia para aprovação do SUS.
+                        </div>
+                        <label for="input-dt-laudo">Data do Laudo/Resultado Diagnóstico</label>
+                        <input type="date" id="input-dt-laudo" class="select-input">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal('modal-executar')">Voltar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Status</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 4: GLOSA DE PROCEDIMENTO (FATURAMENTO) -->
+    <div id="modal-glosar" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Registrar Glosa SUS</h3>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="form-glosar-proc">
+                <div class="modal-body">
+                    <p style="font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem;" id="glosa-proc-nome">-</p>
+                    
+                    <div class="form-group">
+                        <label>Selecione o Motivo da Glosa pelo SUS</label>
+                        <div class="glosa-options">
+                            <label class="glosa-option">
+                                <input type="radio" name="motivo_glosa" value="Falta Data Diagnóstico (Portaria Onco)" checked>
+                                Falta Data Diagnóstico (Portaria Onco)
+                            </label>
+                            <label class="glosa-option">
+                                <input type="radio" name="motivo_glosa" value="APAC Expirada (> 2 Competências)">
+                                APAC Expirada (> 2 Competências)
+                            </label>
+                            <label class="glosa-option">
+                                <input type="radio" name="motivo_glosa" value="CPF/CNS Inválido ou Inconsistente">
+                                CPF/CNS Inválido ou Inconsistente
+                            </label>
+                            <label class="glosa-option">
+                                <input type="radio" name="motivo_glosa" value="Procedimento Sem Correlação Clínica">
+                                Procedimento Sem Correlação Clínica
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: var(--danger); border-color: var(--danger);">Confirmar Glosa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 5: GERAR FATURA E REMESSA (LOTE SUS) -->
+    <div id="modal-gerar-remessa" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Gerar Fatura e Lote de Remessa (SIA/SUS)</h3>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="form-gerar-remessa">
+                <div class="modal-body">
+                    <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:1rem;">
+                        Selecione as contas pacientes e os exames faturados para compor o lote de remessa eletrônica.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label for="remessa-id-input">Número do Lote/Remessa</label>
+                            <input type="text" id="remessa-id-input" class="select-input" required readonly>
+                        </div>
+                        <div class="form-group" style="margin-bottom:0;">
+                            <label for="remessa-competencia-input">Competência SUS</label>
+                            <select id="remessa-competencia-input" class="select-input" required>
+                                <!-- JS gera competência atual e subsequente -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Contas Pacientes OCI Elegíveis</label>
+                        <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                            Somente pacientes com procedimentos marcados como "Faturado" ou "Reapresentado" e que ainda não foram inseridos em outro lote de remessa.
+                        </p>
+                        
+                        <div class="procedures-checklist" id="remessa-pacientes-checklist" style="max-height: 220px;">
+                            <!-- Dinâmico -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar Lote (Em Aberto)</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 6: TRANSFERIR PACIENTE DE REMESSA -->
+    <div id="modal-transferir-paciente" class="modal-overlay">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Transferir Paciente de Lote</h3>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <form id="form-transferir-paciente">
+                <input type="hidden" id="transf-paciente-id">
+                <input type="hidden" id="transf-origem-id">
+                <div class="modal-body">
+                    <div style="background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
+                        <p style="font-size:0.875rem;">Paciente: <strong id="transf-paciente-nome">-</strong></p>
+                        <p style="font-size:0.75rem; color:var(--text-secondary); margin-top:0.25rem;">Lote de Origem: <strong id="transf-lote-origem">-</strong></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Selecione o Destino da Transferência</label>
+                        <div class="glosa-options" id="transf-opcoes-lote">
+                            <!-- Inserido dinamicamente (lotes em aberto ou criar novo) -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-close-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Confirmar Transferência</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 7: GERENCIAR TABELAS OCI (CADASTRO E LISTAGEM) -->
+    <div id="modal-gerenciar-ocis" class="modal-overlay">
+        <div class="modal-content" style="max-width: 750px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Tabela de Procedimentos OCI</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-gerenciar-ocis')">&times;</button>
+            </div>
+            
+            <!-- Abas internas do Modal -->
+            <div class="modal-tabs" style="display: flex; background-color: var(--bg-tertiary); border-bottom: 1px solid var(--border-color); padding: 0.25rem 0.5rem; gap: 0.25rem;">
+                <button class="modal-tab-btn active" id="tab-btn-listar-ocis" onclick="switchModalTab('listar')">Linhas OCI Ativas</button>
+                <button class="modal-tab-btn" id="tab-btn-cadastrar-oci" onclick="switchModalTab('cadastrar')">Cadastrar Nova OCI</button>
+            </div>
+            
+            <div class="modal-body" style="padding: 1.25rem;">
+                
+                <!-- ABA 1: LISTAGEM DE OCIS -->
+                <div id="modal-tab-content-listar" class="modal-tab-content active">
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                        Estas são as Ofertas de Cuidado Integrado atualmente cadastradas no sistema. Elas ficam disponíveis para prescrição médica no Painel Clínico.
+                    </p>
+                    <div class="table-container" style="margin-bottom:0; max-height: 350px; overflow-y: auto;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Linha de Cuidado</th>
+                                    <th>Especialidade</th>
+                                    <th>Valor APAC</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-gerenciar-ocis-body">
+                                <!-- Gerado dinamicamente via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- ABA 2: CADASTRO DE NOVA OCI -->
+                <div id="modal-tab-content-cadastrar" class="modal-tab-content">
+                    <form id="form-cadastrar-oci">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="oci-novo-codigo">Código da OCI (APAC Principal)</label>
+                                <input type="text" id="oci-novo-codigo" class="select-input" placeholder="Ex: 09.02.01.001-8" required style="width: 100%;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="oci-novo-nome">Nome da Linha de Cuidado</label>
+                                <input type="text" id="oci-novo-nome" class="select-input" placeholder="Ex: OCI Risco Cirúrgico" required style="width: 100%;">
+                            </div>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="oci-nova-especialidade">Especialidade Clínica</label>
+                                <select id="oci-nova-especialidade" class="select-input" required style="width: 100%;">
+                                    <option value="Cardiologia">Cardiologia</option>
+                                    <option value="Oncologia">Oncologia</option>
+                                    <option value="Ortopedia">Ortopedia</option>
+                                    <option value="Oftalmologia">Oftalmologia</option>
+                                    <option value="Outra">Outra</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="oci-novo-valor">Valor do Repasse SUS (Principal)</label>
+                                <input type="number" id="oci-novo-valor" class="select-input" placeholder="Ex: 250.00" step="0.01" min="0" required style="width: 100%;">
+                            </div>
+                        </div>
+                        
+                        <!-- Painel de Inclusão de Procedimentos Secundários -->
+                        <div style="border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; background-color: var(--bg-tertiary); margin-top: 1.25rem;">
+                            <h4 style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.75rem; text-transform: uppercase; color: var(--text-secondary);">
+                                Procedimentos Secundários da OCI
+                            </h4>
+                            
+                            <div style="display: grid; grid-template-columns: 1.2fr 2fr 0.6fr 0.8fr; gap: 0.5rem; align-items: end; margin-bottom: 0.75rem;">
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 0.75rem;">Cód. Procedimento</label>
+                                    <input type="text" id="proc-novo-codigo" class="select-input" placeholder="Ex: 02.11.02.003-6" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 0.75rem;">Nome do Exame/Consulta</label>
+                                    <input type="text" id="proc-novo-nome" class="select-input" placeholder="Ex: Eletrocardiograma" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0;">
+                                    <label style="font-size: 0.75rem;">Qtd</label>
+                                    <input type="number" id="proc-nova-qtd" class="select-input" value="1" min="1" style="width: 100%;">
+                                </div>
+                                <div class="form-group" style="margin-bottom: 0; text-align: center;">
+                                    <label style="font-size: 0.72rem; display: block; margin-bottom: 0.35rem;">Laudo Onco?</label>
+                                    <input type="checkbox" id="proc-novo-onco" style="width: 1.1rem; height: 1.1rem; accent-color: var(--accent);">
+                                </div>
+                            </div>
+                            
+                            <button type="button" class="btn btn-sm btn-primary" onclick="adicionarProcedimentoTemporario()" style="margin-bottom: 1rem; width: 100%; justify-content: center;">
+                                + Inserir Procedimento na Lista
+                            </button>
+                            
+                            <!-- Lista temporária com scroll -->
+                            <div class="procedures-checklist" style="max-height: 140px; border-color: var(--border-color);">
+                                <div class="checklist-title">
+                                    <span>Procedimentos Adicionados</span>
+                                    <span id="temp-procs-count">0 adicionados</span>
+                                </div>
+                                <div id="temp-procs-lista-container">
+                                    <!-- Dinâmico -->
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="modal-footer" style="padding: 1rem 0 0 0; background-color: transparent; border-top: none; margin-top: 1rem;">
+                            <button type="button" class="btn" onclick="closeModal('modal-gerenciar-ocis')">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar Definição de OCI</button>
+                        </div>
+                    </form>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+
+    <!-- TELA DE LOGIN (SOBREPOSIÇÃO) -->
+    <div id="view-login" class="login-wrapper">
+        <div class="login-card">
+            <div class="login-logo-container">
+                <img src="Logo_Feluma.png" alt="Logo Feluma" class="login-logo-img">
+                <h2>Painel OCI</h2>
+                <p>Oferta de Cuidado Integrado • SUS</p>
+            </div>
+            
+            <form id="form-login">
+                <div class="form-group">
+                    <label for="login-username">Selecione seu Perfil de Acesso</label>
+                    <select id="login-username" class="select-input" required style="width: 100%;">
+                        <option value="medico">Médico (Dr. Fernando Silva)</option>
+                        <option value="navegacao">Navegação (Aline Fonseca)</option>
+                        <option value="faturamento">Faturamento (Lucas Mendes)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password">Senha de Acesso</label>
+                    <input type="password" id="login-password" class="select-input" value="123456" required style="width: 100%;">
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 0.75rem;">
+                    Entrar no Sistema
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL 8: PANORAMA GERAL E EVOLUÇÃO DO CUIDADO -->
+    <div id="modal-panorama-geral" class="modal-overlay" style="z-index: 1050;">
+        <div class="modal-content" style="max-width: 1200px; width: 95vw;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Panorama Geral e Evolução do Cuidado OCI</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-panorama-geral')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <!-- KPIs Rápidos do Panorama -->
+                <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="stat-card blue" style="padding: 0.75rem 1rem;">
+                        <div class="stat-info">
+                            <div class="stat-value" id="pan-kpi-pacientes" style="font-size: 1.5rem; text-align: left;">0</div>
+                            <div class="stat-label" style="font-size: 0.7rem;">Pacientes Ativos</div>
+                        </div>
+                    </div>
+                    <div class="stat-card info" style="padding: 0.75rem 1rem;">
+                        <div class="stat-info">
+                            <div class="stat-value" id="pan-kpi-progresso" style="font-size: 1.5rem; text-align: left;">0%</div>
+                            <div class="stat-label" style="font-size: 0.7rem;">Conclusão Média</div>
+                        </div>
+                    </div>
+                    <div class="stat-card green" style="padding: 0.75rem 1rem;">
+                        <div class="stat-info">
+                            <div class="stat-value" id="pan-kpi-valor" style="font-size: 1.5rem; text-align: left;">R$ 0,00</div>
+                            <div class="stat-label" style="font-size: 0.7rem;">Repasse Previsto</div>
+                        </div>
+                    </div>
+                    <div class="stat-card orange" style="padding: 0.75rem 1rem;">
+                        <div class="stat-info">
+                            <div class="stat-value" id="pan-kpi-glosas" style="font-size: 1.5rem; text-align: left;">0%</div>
+                            <div class="stat-label" style="font-size: 0.7rem;">Taxa de Glosa</div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Barra de Ações / Filtro do Panorama -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.5rem 1rem; flex-wrap: wrap; gap: 0.5rem;">
+                    <div style="display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 280px;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="color: var(--text-secondary);"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                        <input type="text" id="search-panorama" class="search-input" placeholder="Filtrar por nome, prontuário, CPF ou código OCI..." oninput="renderPanoramaGeral()" style="max-width: 380px; padding: 0.4rem 0.75rem; font-size: 0.8rem; height: auto; margin-bottom: 0;">
+                    </div>
+                    <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 500;">
+                        💡 Dica: Clique em qualquer linha da tabela para ver o detalhamento dos exames.
+                    </span>
+                </div>
+
+                <!-- Tabela de Evolução -->
+                <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Paciente (ID)</th>
+                                <th>Linha de Cuidado</th>
+                                <th>Data Início</th>
+                                <th>Exames Concluídos</th>
+                                <th>Status Faturamento</th>
+                                <th>Evolução / Linha do Tempo</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-panorama-body">
+                            <!-- Gerado dinamicamente via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('modal-panorama-geral')">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 9: DETALHAMENTO DE PROCEDIMENTOS (PANORAMA GERAL) -->
+    <div id="modal-detalhe-panorama" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Detalhamento dos Procedimentos</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-detalhe-panorama')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.25rem;">
+                <div class="paciente-info-summary" style="margin-bottom: 1.25rem; padding: 0.75rem; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+                    <div class="info-item" style="grid-column: span 2;">
+                        <label style="font-size: 0.7rem; color: var(--text-secondary);">Paciente</label>
+                        <strong id="det-pan-paciente-nome" style="font-size: 0.95rem; color: var(--text-primary);">-</strong>
+                    </div>
+                    <div class="info-item">
+                        <label style="font-size: 0.7rem; color: var(--text-secondary);">Linha de Cuidado</label>
+                        <strong id="det-pan-oci-nome" style="font-size: 0.8rem; color: var(--text-primary);">-</strong>
+                    </div>
+                    <div class="info-item">
+                        <label style="font-size: 0.7rem; color: var(--text-secondary);">Código OCI (APAC)</label>
+                        <strong id="det-pan-oci-codigo" style="font-size: 0.8rem; color: var(--text-primary); font-family: monospace;">-</strong>
+                    </div>
+                    <div class="info-item">
+                        <label style="font-size: 0.7rem; color: var(--text-secondary);">Data de Inclusão da OCI</label>
+                        <strong id="det-pan-dt-criacao" style="font-size: 0.8rem; color: var(--text-primary);">-</strong>
+                    </div>
+                    <div class="info-item">
+                        <label style="font-size: 0.7rem; color: var(--text-secondary);">Unidade Hospitalar</label>
+                        <strong id="det-pan-unidade" style="font-size: 0.8rem; color: var(--text-primary);">-</strong>
+                    </div>
+                </div>
+                
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem; letter-spacing: 0.5px;">
+                    Procedimentos da Linha de Cuidado
+                </div>
+                <div id="det-pan-procedimentos-lista" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 300px; overflow-y: auto;">
+                    <!-- Inserido dinamicamente via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('modal-detalhe-panorama')">Fechar Detalhes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 10: CONSOLIDADO DE REMESSAS POR OCI -->
+    <div id="modal-consolidado-remessas" class="modal-overlay" style="z-index: 1050;">
+        <div class="modal-content" style="max-width: 1050px; width: 95vw;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Consolidado de Remessas por Linha de Cuidado (OCI)</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-consolidado-remessas')">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.25rem;">
+                    Abaixo estão consolidadas todas as contas de pacientes e procedimentos secundários enviados em lotes de remessa SUS, agrupados por linha de cuidado (OCI).
+                </p>
+                <div id="consolidado-ocis-container" style="display: flex; flex-direction: column; gap: 1.25rem; max-height: 450px; overflow-y: auto;">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn" onclick="closeModal('modal-consolidado-remessas')">Fechar Consolidação</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
