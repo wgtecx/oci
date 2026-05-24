@@ -444,6 +444,59 @@
         </div>
     </div>
 
+    <!-- MODAL: CANCELAR INCLUSÃO OCI (Janela de 2 horas) -->
+    <div id="modal-cancelar-oci" class="modal-overlay">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, var(--danger-glow), rgba(239,68,68,0.15)); border-bottom: 1px solid var(--danger);">
+                <div class="modal-title">
+                    <h3 style="color: var(--danger);">⚠️ Cancelar Inclusão na OCI</h3>
+                </div>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="cancel-oci-id">
+                
+                <!-- Aviso visual de urgência -->
+                <div style="background: var(--danger-glow); border: 1px solid var(--danger); border-radius: 8px; padding: 1rem; margin-bottom: 1.25rem; display:flex; gap:0.75rem; align-items:flex-start;">
+                    <span style="font-size:1.5rem; line-height:1;">🚨</span>
+                    <div>
+                        <p style="font-size: 0.85rem; font-weight: 700; color: var(--danger); margin-bottom: 0.25rem;">Ação irreversível — dentro da janela de segurança</p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin:0;">O paciente <strong id="cancel-oci-paciente-nome">-</strong> será removido completamente da OCI e o atendimento voltará ao status <strong>Pendente</strong>.</p>
+                    </div>
+                </div>
+                
+                <!-- Informações -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+                    <div style="background: var(--bg-secondary); border-radius: 8px; padding: 0.75rem;">
+                        <p style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em;">Incluído em</p>
+                        <p style="font-size: 0.85rem; font-weight: 600; color: var(--text-primary); margin: 0;" id="cancel-oci-dt-inclusao">-</p>
+                    </div>
+                    <div style="background: var(--danger-glow); border: 1px solid var(--danger); border-radius: 8px; padding: 0.75rem;">
+                        <p style="font-size: 0.7rem; color: var(--danger); margin-bottom: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em;">⏱ Tempo restante</p>
+                        <p style="font-size: 0.85rem; font-weight: 700; color: var(--danger); margin: 0;" id="cancel-oci-tempo-restante">-</p>
+                    </div>
+                </div>
+                
+                <!-- Motivo obrigatório -->
+                <div class="form-group">
+                    <label style="font-weight: 600;">Motivo do cancelamento <span style="color: var(--danger);">*</span></label>
+                    <textarea id="cancel-oci-motivo" rows="3" 
+                        style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.85rem; background: var(--bg-secondary); color: var(--text-primary); resize: vertical; font-family: inherit;"
+                        placeholder="Ex: Paciente incluído por engano, prontuário incorreto..."></textarea>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.25rem;">O motivo será registrado no log de auditoria do sistema.</p>
+                </div>
+            </div>
+            <div class="modal-footer" style="justify-content: space-between;">
+                <button type="button" class="btn btn-close-modal">Voltar</button>
+                <button type="button" class="btn btn-primary" 
+                    onclick="executarCancelamentoOci()"
+                    style="background-color: var(--danger); border-color: var(--danger);">
+                    Confirmar Cancelamento
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 5: GERAR FATURA E REMESSA (LOTE SUS) -->
     <div id="modal-gerar-remessa" class="modal-overlay">
         <div class="modal-content">

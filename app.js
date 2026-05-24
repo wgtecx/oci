@@ -321,6 +321,31 @@ function renderMedicoView() {
     
     paginados.forEach(at => {
         const tr = document.createElement('tr');
+        
+        // Verifica janela de cancelamento (2 horas)
+        let cancelarBtn = '';
+        if (at.fl_oci_criada) {
+            const ociPaciente = db_oci_pacientes.find(p => p.cd_atendimento === at.cd_atendimento);
+            if (ociPaciente && ociPaciente.dt_criacao_ts) {
+                const dtInclusao = new Date(ociPaciente.dt_criacao_ts);
+                const agora = new Date();
+                const diffMs = agora - dtInclusao;
+                const diffMin = Math.floor(diffMs / 60000);
+                const restMin = 120 - diffMin;
+                
+                if (restMin > 0) {
+                    const hRest = Math.floor(restMin / 60);
+                    const mRest = restMin % 60;
+                    const tempoLabel = hRest > 0 ? `${hRest}h${mRest.toString().padStart(2,'0')}m` : `${mRest}min`;
+                    cancelarBtn = `<button class="btn btn-sm" onclick="confirmarCancelamentoOci('${ociPaciente.id}')" 
+                        style="background-color:var(--danger-glow); color:var(--danger); border-color:var(--danger); font-size:0.65rem; margin-left:0.3rem;" 
+                        title="Cancelar inclusão - janela de ${tempoLabel} restantes">
+                        ❌ ${tempoLabel}
+                    </button>`;
+                }
+            }
+        }
+        
         tr.innerHTML = `
             <td><strong>${at.cd_atendimento}</strong></td>
             <td><span class="badge badge-info" style="font-size: 0.72rem; padding: 0.15rem 0.4rem;">${at.unidade || 'HUCM'}</span></td>
@@ -336,7 +361,10 @@ function renderMedicoView() {
             </td>
             <td>
                 ${at.fl_oci_criada 
-                    ? `<button class="btn btn-sm" onclick="abrirDetalheOciMedico('${at.cd_atendimento}')" style="background-color: var(--success-glow); color: var(--success); border-color: var(--success); cursor: pointer;" title="Visualizar detalhamento da OCI deste paciente">Incluso</button>`
+                    ? `<div style="display:flex; align-items:center; gap:0.25rem; flex-wrap:wrap;">
+                        <button class="btn btn-sm" onclick="abrirDetalheOciMedico('${at.cd_atendimento}')" style="background-color: var(--success-glow); color: var(--success); border-color: var(--success); cursor: pointer;" title="Visualizar detalhamento da OCI deste paciente">Incluso</button>
+                        ${cancelarBtn}
+                       </div>`
                     : `<button class="btn btn-primary btn-sm" onclick="openOciModal('${at.cd_atendimento}')">Incluir OCI</button>`
                 }
             </td>
@@ -439,6 +467,7 @@ function handleInsertOci(e) {
     }
     
     // Criar OCI do Paciente
+    const agora = new Date();
     const novoOciPaciente = {
         id: 'OCI-' + Math.floor(100000 + Math.random() * 900000),
         cd_atendimento: activeAtendimento.cd_atendimento,
@@ -452,8 +481,9 @@ function handleInsertOci(e) {
         oci_codigo: ociDef.codigo,
         oci_nome: ociDef.nome,
         dt_criacao: getHoje(),
+        dt_criacao_ts: agora.toISOString(), // Timestamp completo para janela de cancelamento
         competencia_inicial: getCompetenciaAtual(),
-        id_remessa: null, // Lote de remessa associado ao paciente
+        id_remessa: null,
         procedimentos: selecionados
     };
     
@@ -474,8 +504,8 @@ function handleInsertOci(e) {
     renderMedicoView();
     renderStats();
     
-    // Feedback visual
-    alert(`Paciente ${novoOciPaciente.nm_paciente} incluído na OCI com sucesso!\nConta Paciente gerada automaticamente no Faturamento.`);
+    // Feedback visual com aviso da janela de cancelamento
+    alert(`Paciente ${novoOciPaciente.nm_paciente} incluído na OCI com sucesso!\nConta Paciente gerada automaticamente no Faturamento.\n\n⚠️ Você tem 2 horas para cancelar esta inclusão, caso necessário.`);
 }
 
 function renderNavegacaoView() {
@@ -2370,7 +2400,84 @@ window.renderPanoramaGeral = renderPanoramaGeral;
 window.abrirDetalhePanorama = abrirDetalhePanorama;
 window.abrirDetalheOciMedico = abrirDetalheOciMedico;
 
-// 19. Consolidado de Remessas por OCI
+// 19b. Cancelamento de OCI dentro da janela de 2 horas
+function confirmarCancelamentoOci(ociId) {
+    const oci = db_oci_pacientes.find(p => p.id === ociId);
+    if (!oci) return;
+    
+    // Verifica se ainda está dentro da janela
+    const dtInclusao = new Date(oci.dt_criacao_ts);
+    const agora = new Date();
+    const diffMin = Math.floor((agora - dtInclusao) / 60000);
+    const restMin = 120 - diffMin;
+    
+    if (restMin <= 0) {
+        alert('O prazo de 2 horas para cancelamento desta OCI já expirou.\nPara desfazer esta inclusão, entre em contato com o faturamento.');
+        renderMedicoView();
+        return;
+    }
+    
+    const hRest = Math.floor(restMin / 60);
+    const mRest = restMin % 60;
+    const tempoLabel = hRest > 0 ? `${hRest}h ${mRest.toString().padStart(2,'0')}min` : `${mRest} minutos`;
+    
+    // Abre modal de cancelamento
+    document.getElementById('cancel-oci-id').value = ociId;
+    document.getElementById('cancel-oci-paciente-nome').textContent = oci.nm_paciente;
+    document.getElementById('cancel-oci-tempo-restante').textContent = tempoLabel;
+    document.getElementById('cancel-oci-motivo').value = '';
+    document.getElementById('cancel-oci-dt-inclusao').textContent = 
+        new Date(oci.dt_criacao_ts).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    
+    openModal('modal-cancelar-oci');
+}
+
+function executarCancelamentoOci() {
+    const ociId = document.getElementById('cancel-oci-id').value;
+    const motivo = document.getElementById('cancel-oci-motivo').value.trim();
+    
+    if (!motivo) {
+        alert('Por favor, informe o motivo do cancelamento.');
+        return;
+    }
+    
+    const oci = db_oci_pacientes.find(p => p.id === ociId);
+    if (!oci) { closeModal('modal-cancelar-oci'); return; }
+    
+    // Verifica novamente a janela (pode ter expirado enquanto o modal estava aberto)
+    const dtInclusao = new Date(oci.dt_criacao_ts);
+    const diffMin = Math.floor((new Date() - dtInclusao) / 60000);
+    if (diffMin >= 120) {
+        alert('O prazo de 2 horas expirou durante o preenchimento.\nO cancelamento não pode mais ser realizado.');
+        closeModal('modal-cancelar-oci');
+        renderMedicoView();
+        return;
+    }
+    
+    // Remove a OCI do banco de pacientes
+    db_oci_pacientes = db_oci_pacientes.filter(p => p.id !== ociId);
+    saveDb('oci_db_pacientes', db_oci_pacientes);
+    
+    // Reverte o fl_oci_criada no atendimento do SoulMV
+    db_soulmv = db_soulmv.map(at => {
+        if (at.cd_atendimento === oci.cd_atendimento) {
+            return { ...at, fl_oci_criada: false };
+        }
+        return at;
+    });
+    saveDb('oci_db_soulmv', db_soulmv);
+    
+    closeModal('modal-cancelar-oci');
+    renderMedicoView();
+    renderStats();
+    
+    alert(`✅ Inclusão de ${oci.nm_paciente} na OCI cancelada com sucesso!\nMotivo registrado: ${motivo}`);
+}
+
+window.confirmarCancelamentoOci = confirmarCancelamentoOci;
+window.executarCancelamentoOci = executarCancelamentoOci;
+
+
 function renderConsolidadoRemessasOcis() {
     const container = document.getElementById('consolidado-ocis-container');
     if (!container) return;
