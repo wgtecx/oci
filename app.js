@@ -484,6 +484,7 @@ function handleInsertOci(e) {
         dt_criacao_ts: agora.toISOString(), // Timestamp completo para janela de cancelamento
         competencia_inicial: getCompetenciaAtual(),
         id_remessa: null,
+        status: 'Ativa',
         procedimentos: selecionados
     };
     
@@ -564,7 +565,12 @@ function renderNavegacaoView() {
         const card = document.createElement('div');
         card.className = 'kanban-card';
         card.innerHTML = `
-            <span class="card-oci-tag">${p.id} • ${p.oci_nome}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.25rem;">
+                <span class="card-oci-tag" style="margin:0;">${p.id} • ${p.oci_nome}</span>
+                <span class="badge ${p.status === 'Fechada' ? 'badge-success' : 'badge-info'}" style="font-size:0.6rem; padding:0.15rem 0.35rem;">
+                    ${p.status === 'Fechada' ? 'OCI Fechada' : 'OCI Ativa'}
+                </span>
+            </div>
             <h4 class="card-patient-name">${p.nm_paciente}</h4>
             <div class="card-details">
                 <p>Prontuário: <strong>${p.cd_paciente}</strong> | Atend: <strong>${p.cd_atendimento}</strong> | Unidade: <strong>${p.unidade || 'HUCM'}</strong></p>
@@ -769,7 +775,9 @@ function renderFaturamentoView() {
                     </span>
                 </div>
                 <div style="text-align:right;">
-                    <span class="badge badge-info" style="font-size:0.75rem;">Conta Paciente Ativa</span>
+                    <span class="badge ${p.status === 'Fechada' ? 'badge-success' : 'badge-info'}" style="font-size:0.75rem;">
+                        ${p.status === 'Fechada' ? 'Conta Paciente Fechada' : 'Conta Paciente Ativa'}
+                    </span>
                     <span style="display:block; font-size:0.75rem; color:var(--text-muted); margin-top:0.25rem;">Criada em: ${formatDate(p.dt_criacao)}</span>
                 </div>
             </div>
@@ -935,8 +943,8 @@ function renderStats() {
     const atendimentosPendentes = db_soulmv.filter(at => at.prestador === 'Dr. Fernando Silva' && !at.fl_oci_criada).length;
     document.getElementById('stat-medico-pendentes').textContent = atendimentosPendentes;
     
-    // Navegação: Total de pacientes ativos na OCI
-    const ociAtivas = db_oci_pacientes.length;
+    // Navegação: Total de pacientes ativos na OCI (que não estão fechadas)
+    const ociAtivas = db_oci_pacientes.filter(p => p.status !== 'Fechada').length;
     document.getElementById('stat-navegacao-ativas').textContent = ociAtivas;
     
     // Faturamento: Procedimentos faturados e glosados
@@ -1126,9 +1134,9 @@ function handleSaveRemessa(e) {
         }
     });
     
+    // Permite criar remessa sem pacientes selecionados
     if (pacientesSelecionados.length === 0) {
-        alert('Selecione pelo menos um paciente com exames faturados para gerar o lote.');
-        return;
+        console.log('Criando remessa vazia sem pacientes associados.');
     }
     
     // Vincula a remessa ao nível de PROCEDIMENTO (permite múltiplas remessas por paciente)
@@ -1332,7 +1340,6 @@ function renderLotesRemessa() {
 }
 
 function fecharRemessa(remessaId) {
-    // REGRA DE SEGURANÇA SUS: Só permite fechar o lote se NÃO houver exames pendentes para nenhum paciente do lote
     const pacientesIds = new Set();
     db_oci_pacientes.forEach(p => {
         p.procedimentos.forEach(proc => {
@@ -1341,32 +1348,58 @@ function fecharRemessa(remessaId) {
     });
     const pacientesLote = db_oci_pacientes.filter(p => pacientesIds.has(p.id));
     
-    let pendencias = [];
+    // 1. REGRA DE SEGURANÇA SUS (Original): Não permite fechar se houver exames da própria remessa pendentes de faturamento
+    let pendenciasFaturamento = [];
     pacientesLote.forEach(p => {
-        // Conta procedimentos DESTA remessa que ainda estão pendentes
         const examesPendentes = p.procedimentos.filter(proc => 
             proc.id_remessa === remessaId &&
             proc.status_faturamento !== 'Faturado' && 
             proc.status_faturamento !== 'Reapresentado'
         );
         if (examesPendentes.length > 0) {
-            pendencias.push({
+            pendenciasFaturamento.push({
                 paciente: p.nm_paciente,
                 qtd: examesPendentes.length
             });
         }
     });
     
-    if (pendencias.length > 0) {
-        let msg = `Bloqueio de Fechamento de Lote (Regra SUS):\n`;
-        pendencias.forEach(pen => {
-            msg += `• O paciente ${pen.paciente} possui ${pen.qtd} procedimento(s) pendente(s) de execução/auditoria.\n`;
+    if (pendenciasFaturamento.length > 0) {
+        let msg = `Bloqueio de Fechamento de Lote (Regra SUS - Pendência de Faturamento):\n`;
+        pendenciasFaturamento.forEach(pen => {
+            msg += `• O paciente ${pen.paciente} possui ${pen.qtd} procedimento(s) pendente(s) de faturamento/auditoria neste lote.\n`;
         });
-        msg += `\nPara transmitir esta remessa, você deve concluir os exames pendentes ou transferir estes pacientes para outro lote aberto ou novo.`;
+        msg += `\nPara transmitir esta remessa, você deve consolidar o faturamento desses procedimentos ou transferir estes pacientes para outro lote.`;
         alert(msg);
         return;
     }
     
+    // 2. REGRA CLÍNICA (Solicitada): Não permite fechar se houver qualquer exame pendente de execução clínica em toda a OCI do paciente
+    let pendenciasClinicas = [];
+    pacientesLote.forEach(p => {
+        const examesSemExecucao = p.procedimentos.filter(proc => proc.status !== 'Realizado');
+        if (examesSemExecucao.length > 0) {
+            pendenciasClinicas.push({
+                paciente: p.nm_paciente,
+                exames: examesSemExecucao.map(proc => proc.nome)
+            });
+        }
+    });
+    
+    if (pendenciasClinicas.length > 0) {
+        let msg = `Bloqueio de Fechamento de Lote (Pendência de Execução Clínica):\n`;
+        pendenciasClinicas.forEach(pen => {
+            msg += `• Paciente: ${pen.paciente}\n  Exame(s) pendente(s) de execução/realização na OCI:\n`;
+            pen.exames.forEach(ex => {
+                msg += `    - ${ex}\n`;
+            });
+        });
+        msg += `\nPara transmitir esta remessa, os exames pendentes do paciente na OCI devem ser concluídos na Navegação, ou você deve transferir o paciente para outro lote.`;
+        alert(msg);
+        return;
+    }
+    
+    // Altera o status da remessa
     db_oci_remessas = db_oci_remessas.map(r => {
         if (r.id === remessaId) {
             return { ...r, status: 'Transmitido SUS', dt_fechamento: getHoje() };
@@ -1374,10 +1407,20 @@ function fecharRemessa(remessaId) {
         return r;
     });
     saveDb('oci_db_remessas', db_oci_remessas);
+    
+    // Fecha a OCI de todos os pacientes do lote
+    db_oci_pacientes = db_oci_pacientes.map(p => {
+        if (pacientesIds.has(p.id)) {
+            return { ...p, status: 'Fechada' };
+        }
+        return p;
+    });
+    saveDb('oci_db_pacientes', db_oci_pacientes);
+    
     renderFaturamentoView();
     renderLotesRemessa();
     renderStats();
-    alert(`Lote de Remessa ${remessaId} foi FECHADO e TRANSMITIDO ao SUS!\nPronto para exportação de arquivo posicional.`);
+    alert(`Lote de Remessa ${remessaId} foi FECHADO e TRANSMITIDO ao SUS!\nA OCI de todos os pacientes vinculados foi FECHADA com sucesso.`);
 }
 
 function reabrirRemessa(remessaId) {
@@ -1388,10 +1431,28 @@ function reabrirRemessa(remessaId) {
         return r;
     });
     saveDb('oci_db_remessas', db_oci_remessas);
+    
+    // Coleta pacientes no lote
+    const pacientesIds = new Set();
+    db_oci_pacientes.forEach(p => {
+        p.procedimentos.forEach(proc => {
+            if (proc.id_remessa === remessaId) pacientesIds.add(p.id);
+        });
+    });
+    
+    // Reabre as contas OCI correspondentes
+    db_oci_pacientes = db_oci_pacientes.map(p => {
+        if (pacientesIds.has(p.id)) {
+            return { ...p, status: 'Ativa' };
+        }
+        return p;
+    });
+    saveDb('oci_db_pacientes', db_oci_pacientes);
+    
     renderFaturamentoView();
     renderLotesRemessa();
     renderStats();
-    alert(`Lote de Remessa ${remessaId} foi REABERTO para modificações.`);
+    alert(`Lote de Remessa ${remessaId} foi REABERTO para modificações e as contas dos pacientes vinculados voltaram ao status de Ativa.`);
 }
 
 function excluirRemessa(remessaId) {
@@ -1403,15 +1464,21 @@ function excluirRemessa(remessaId) {
     db_oci_remessas = db_oci_remessas.filter(r => r.id !== remessaId);
     saveDb('oci_db_remessas', db_oci_remessas);
     
-    // Remove o id_remessa dos procedimentos correspondentes a esta remessa
+    // Remove o id_remessa dos procedimentos correspondentes a esta remessa e reativa as contas
     db_oci_pacientes = db_oci_pacientes.map(p => {
+        let pertenceAoLote = false;
         const procsAtualizados = p.procedimentos.map(proc => {
             if (proc.id_remessa === remessaId) {
+                pertenceAoLote = true;
                 return { ...proc, id_remessa: null };
             }
             return proc;
         });
-        return { ...p, procedimentos: procsAtualizados };
+        
+        if (pertenceAoLote) {
+            return { ...p, procedimentos: procsAtualizados, status: 'Ativa' };
+        }
+        return p;
     });
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
@@ -1432,10 +1499,12 @@ function auditarLote(remessaId, novoStatus) {
     
     // Se o lote for rejeitado, simula a volta dos itens para faturamento
     if (novoStatus === 'Lote Rejeitado') {
-        // Marca os procedimentos do lote como Glosado e remove o id_remessa deles
+        // Marca os procedimentos do lote como Glosado, remove o id_remessa deles e reativa a OCI
         db_oci_pacientes = db_oci_pacientes.map(p => {
+            let pertenceAoLote = false;
             const procsAtualizados = p.procedimentos.map(proc => {
                 if (proc.id_remessa === remessaId) {
+                    pertenceAoLote = true;
                     return { 
                         ...proc, 
                         id_remessa: null,
@@ -1445,10 +1514,13 @@ function auditarLote(remessaId, novoStatus) {
                 }
                 return proc;
             });
-            return { ...p, procedimentos: procsAtualizados };
+            if (pertenceAoLote) {
+                return { ...p, procedimentos: procsAtualizados, status: 'Ativa' };
+            }
+            return p;
         });
         saveDb('oci_db_pacientes', db_oci_pacientes);
-        alert(`O lote ${remessaId} foi recusado na auditoria do SUS!\nAs cobranças de todos os pacientes voltaram para a fila do faturamento com status de GLOSA.`);
+        alert(`O lote ${remessaId} foi recusado na auditoria do SUS!\nAs cobranças de todos os pacientes voltaram para a fila do faturamento com status de GLOSA e a OCI deles foi reaberta.`);
     } else {
         alert(`O lote ${remessaId} foi processado e APROVADO pela auditoria do SUS!\nO repasse financeiro de faturamento do PMAE foi liberado.`);
     }
