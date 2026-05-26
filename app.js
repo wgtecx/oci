@@ -1529,6 +1529,34 @@ function fecharRemessa(remessaId) {
         return;
     }
     
+    // 3. REGRA DE SEGURANÇA (Solicitada): Não permite fechar se o paciente no lote possuir exames pendentes de faturamento na OCI
+    let pendenciasLancamento = [];
+    pacientesLote.forEach(p => {
+        const examesNaoLancados = p.procedimentos.filter(proc => 
+            !proc.id_remessa && 
+            (proc.status_faturamento === 'Pendente' || proc.status_faturamento === 'Glosado')
+        );
+        if (examesNaoLancados.length > 0) {
+            pendenciasLancamento.push({
+                paciente: p.nm_paciente,
+                exames: examesNaoLancados.map(proc => proc.nome)
+            });
+        }
+    });
+    
+    if (pendenciasLancamento.length > 0) {
+        let msg = `Bloqueio de Fechamento de Lote (Pendência de Lançamento/Faturamento):\n`;
+        pendenciasLancamento.forEach(pen => {
+            msg += `• Paciente: ${pen.paciente}\n  Exame(s) pendente(s) de faturamento/lançamento na OCI:\n`;
+            pen.exames.forEach(ex => {
+                msg += `    - ${ex}\n`;
+            });
+        });
+        msg += `\nPara transmitir esta remessa, você deve faturar e enviar esses exames pendentes para este ou outro lote, ou transferir o paciente para outro lote.`;
+        alert(msg);
+        return;
+    }
+    
     // Altera o status da remessa
     db_oci_remessas = db_oci_remessas.map(r => {
         if (r.id === remessaId) {
