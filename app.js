@@ -235,6 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-glosar-proc').addEventListener('submit', handleSaveGlosa);
     document.getElementById('form-gerar-remessa').addEventListener('submit', handleSaveRemessa); // Lote remessa
     document.getElementById('form-transferir-paciente').addEventListener('submit', handleSaveTransferencia); // Transferência
+    document.getElementById('form-enviar-sus').addEventListener('submit', handleSaveEnviarSus);
     
     // Ações de Login
     document.getElementById('form-login').addEventListener('submit', handleLoginSubmit);
@@ -882,12 +883,107 @@ function faturarProcedimento(ociPacienteId, index) {
         return;
     }
     
+    // Popula campos ocultos e labels do modal
+    document.getElementById('env-sus-paciente-id').value = ociPacienteId;
+    document.getElementById('env-sus-proc-index').value = index;
+    document.getElementById('env-sus-paciente-nome').textContent = oci.nm_paciente;
+    document.getElementById('env-sus-proc-nome').textContent = proc.nome;
+    
+    // Popula select de competências
+    const compSelect = document.getElementById('env-sus-competencia-select');
+    compSelect.innerHTML = '';
+    const compAtual = getCompetenciaAtual();
+    const compSeguinte = getCompetenciaAtivaSeguinte();
+    
+    const opt1 = document.createElement('option');
+    opt1.value = compAtual;
+    opt1.textContent = `${compAtual} (Competência Ativa)`;
+    compSelect.appendChild(opt1);
+    
+    const opt2 = document.createElement('option');
+    opt2.value = compSeguinte;
+    opt2.textContent = `${compSeguinte} (Próxima Competência)`;
+    compSelect.appendChild(opt2);
+    
+    // Popula select de remessas
+    const loteSelect = document.getElementById('env-sus-lote-select');
+    loteSelect.innerHTML = '';
+    
+    // Opção de criar nova remessa
+    const loteNovoNum = 'REM-' + getHoje().replace(/-/g, '') + '-' + Math.floor(100 + Math.random() * 900);
+    const optNovo = document.createElement('option');
+    optNovo.value = loteNovoNum;
+    optNovo.dataset.isNew = 'true';
+    optNovo.textContent = `[Nova Remessa] ${loteNovoNum}`;
+    loteSelect.appendChild(optNovo);
+    
+    // Opções de lotes em digitação
+    const lotesAbertos = db_oci_remessas.filter(r => r.status === 'Em Digitação');
+    lotesAbertos.forEach(r => {
+        const optAberto = document.createElement('option');
+        optAberto.value = r.id;
+        optAberto.dataset.isNew = 'false';
+        optAberto.dataset.competencia = r.competencia;
+        optAberto.textContent = `[Lote Aberto] ${r.id} (Comp: ${r.competencia})`;
+        loteSelect.appendChild(optAberto);
+    });
+    
+    // Ao mudar o lote, herda competência
+    loteSelect.onchange = () => {
+        const selectedOpt = loteSelect.selectedOptions[0];
+        if (selectedOpt && selectedOpt.dataset.isNew === 'false') {
+            compSelect.value = selectedOpt.dataset.competencia;
+            compSelect.disabled = true;
+        } else {
+            compSelect.disabled = false;
+        }
+    };
+    
+    compSelect.disabled = false;
+    openModal('modal-enviar-sus');
+}
+
+function handleSaveEnviarSus(e) {
+    e.preventDefault();
+    const ociPacienteId = document.getElementById('env-sus-paciente-id').value;
+    const index = parseInt(document.getElementById('env-sus-proc-index').value);
+    const remessaId = document.getElementById('env-sus-lote-select').value;
+    const competencia = document.getElementById('env-sus-competencia-select').value;
+    
+    const oci = db_oci_pacientes.find(p => p.id === ociPacienteId);
+    const proc = oci.procedimentos[index];
+    
+    // Atualiza status do procedimento
     proc.status_faturamento = 'Faturado';
-    proc.competencia = getCompetenciaAtual();
+    proc.competencia = competencia;
+    proc.id_remessa = remessaId;
+    
     saveDb('oci_db_pacientes', db_oci_pacientes);
+    
+    // Cria a remessa se não existir
+    const remessaJaExiste = db_oci_remessas.find(r => r.id === remessaId);
+    if (!remessaJaExiste) {
+        const novaRemessa = {
+            id: remessaId,
+            competencia: competencia,
+            dt_fechamento: getHoje(),
+            qtd_contas: 0,
+            qtd_procedimentos: 0,
+            valor_total: 0,
+            status: 'Em Digitação'
+        };
+        db_oci_remessas.push(novaRemessa);
+    }
+    
+    saveDb('oci_db_remessas', db_oci_remessas);
+    recalcularRemessasValores();
+    
+    closeModal('modal-enviar-sus');
     renderFaturamentoView();
+    renderLotesRemessa();
     renderStats();
-    alert('Procedimento consolidado e enviado na remessa de faturamento SUS!');
+    
+    alert(`Procedimento faturado e enviado com sucesso para o lote ${remessaId}!`);
 }
 
 function openGlosaModal(ociPacienteId, index) {
