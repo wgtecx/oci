@@ -983,82 +983,115 @@ function faturarProcedimento(ociPacienteId, index) {
 }
 
 function faturarTodosProcedimentos(ociPacienteId) {
-    const oci = db_oci_pacientes.find(p => p.id === ociPacienteId);
-    if (!oci) return;
-    
-    const elegiveis = oci.procedimentos.filter(proc => proc.status === 'Realizado' && !proc.id_remessa && proc.status_faturamento === 'Pendente');
-    
-    if (elegiveis.length === 0) {
-        alert('Não há procedimentos disponíveis para faturamento.');
-        return;
-    }
-    
-    // Validação preventiva no faturamento em lote para exames de Oncologia que exigem laudo
-    const pendentesLaudo = elegiveis.filter(proc => proc.exigeDiagnostico && !proc.dt_diagnostico);
-    if (pendentesLaudo.length > 0) {
-        const nomesProcs = pendentesLaudo.map(proc => `${proc.nome} (Cód: ${proc.codigo})`).join(', ');
-        alert(`Erro de Regra SUS: Os seguintes procedimentos exigem a Data do Diagnóstico da Neoplasia (Portaria 1.824) e estão sem a data preenchida: ${nomesProcs}. A Navegação precisa preencher este campo.`);
-        return;
-    }
-    
-    // Popula campos ocultos e labels do modal
-    document.getElementById('env-sus-paciente-id').value = ociPacienteId;
-    document.getElementById('env-sus-proc-index').value = 'TODOS';
-    document.getElementById('env-sus-paciente-nome').textContent = oci.nm_paciente;
-    document.getElementById('env-sus-proc-name').textContent = `Todos os procedimentos disponíveis (${elegiveis.length} item/itens)`;
-    
-    // Popula select de competências
-    const compSelect = document.getElementById('env-sus-competencia-select');
-    compSelect.innerHTML = '';
-    const compAtual = getCompetenciaAtual();
-    const compSeguinte = getCompetenciaAtivaSeguinte();
-    
-    const opt1 = document.createElement('option');
-    opt1.value = compAtual;
-    opt1.textContent = `${compAtual} (Competência Ativa)`;
-    compSelect.appendChild(opt1);
-    
-    const opt2 = document.createElement('option');
-    opt2.value = compSeguinte;
-    opt2.textContent = `${compSeguinte} (Próxima Competência)`;
-    compSelect.appendChild(opt2);
-    
-    // Popula select de remessas
-    const loteSelect = document.getElementById('env-sus-lote-select');
-    loteSelect.innerHTML = '';
-    
-    // Opção de criar nova remessa
-    const loteNovoNum = 'REM-' + getHoje().replace(/-/g, '') + '-' + Math.floor(100 + Math.random() * 900);
-    const optNovo = document.createElement('option');
-    optNovo.value = loteNovoNum;
-    optNovo.dataset.isNew = 'true';
-    optNovo.textContent = `[Nova Remessa] ${loteNovoNum}`;
-    loteSelect.appendChild(optNovo);
-    
-    // Opções de lotes em digitação
-    const lotesAbertos = db_oci_remessas.filter(r => r.status === 'Em Digitação');
-    lotesAbertos.forEach(r => {
-        const optAberto = document.createElement('option');
-        optAberto.value = r.id;
-        optAberto.dataset.isNew = 'false';
-        optAberto.dataset.competencia = r.competencia;
-        optAberto.textContent = `[Lote Aberto] ${r.id} (Comp: ${r.competencia})`;
-        loteSelect.appendChild(optAberto);
-    });
-    
-    // Ao mudar o lote, herda competência
-    loteSelect.onchange = () => {
-        const selectedOpt = loteSelect.selectedOptions[0];
-        if (selectedOpt && selectedOpt.dataset.isNew === 'false') {
-            compSelect.value = selectedOpt.dataset.competencia;
-            compSelect.disabled = true;
-        } else {
-            compSelect.disabled = false;
+    try {
+        console.log("faturarTodosProcedimentos chamado para paciente:", ociPacienteId);
+        const oci = db_oci_pacientes.find(p => p.id === ociPacienteId);
+        if (!oci) {
+            alert("Erro: Paciente não encontrado com ID: " + ociPacienteId);
+            return;
         }
-    };
-    
-    compSelect.disabled = false;
-    openModal('modal-enviar-sus');
+        
+        const elegiveis = oci.procedimentos.filter(proc => proc.status === 'Realizado' && !proc.id_remessa && proc.status_faturamento === 'Pendente');
+        
+        if (elegiveis.length === 0) {
+            alert('Não há procedimentos disponíveis para faturamento.');
+            return;
+        }
+        
+        // Validação preventiva no faturamento em lote para exames de Oncologia que exigem laudo
+        const pendentesLaudo = elegiveis.filter(proc => proc.exigeDiagnostico && !proc.dt_diagnostico);
+        if (pendentesLaudo.length > 0) {
+            const nomesProcs = pendentesLaudo.map(proc => `${proc.nome} (Cód: ${proc.codigo})`).join(', ');
+            alert(`Erro de Regra SUS: Os seguintes procedimentos exigem a Data do Diagnóstico da Neoplasia (Portaria 1.824) e estão sem a data preenchida: ${nomesProcs}. A Navegação precisa preencher este campo.`);
+            return;
+        }
+        
+        // Popula campos ocultos e labels do modal
+        const idInput = document.getElementById('env-sus-paciente-id');
+        const indexInput = document.getElementById('env-sus-proc-index');
+        const nomeLabel = document.getElementById('env-sus-paciente-nome');
+        const procLabel = document.getElementById('env-sus-proc-nome');
+        
+        let ausentes = [];
+        if (!idInput) ausentes.push('env-sus-paciente-id');
+        if (!indexInput) ausentes.push('env-sus-proc-index');
+        if (!nomeLabel) ausentes.push('env-sus-paciente-nome');
+        if (!procLabel) ausentes.push('env-sus-proc-nome');
+        
+        if (ausentes.length > 0) {
+            alert("Erro: Os seguintes elementos do modal de faturamento não foram encontrados no HTML: " + ausentes.join(', '));
+            return;
+        }
+        
+        idInput.value = ociPacienteId;
+        indexInput.value = 'TODOS';
+        nomeLabel.textContent = oci.nm_paciente;
+        procLabel.textContent = `Todos os procedimentos disponíveis (${elegiveis.length} item/itens)`;
+        
+        // Popula select de competências
+        const compSelect = document.getElementById('env-sus-competencia-select');
+        if (!compSelect) {
+            alert("Erro: Elemento env-sus-competencia-select não encontrado.");
+            return;
+        }
+        compSelect.innerHTML = '';
+        const compAtual = getCompetenciaAtual();
+        const compSeguinte = getCompetenciaAtivaSeguinte();
+        
+        const opt1 = document.createElement('option');
+        opt1.value = compAtual;
+        opt1.textContent = `${compAtual} (Competência Ativa)`;
+        compSelect.appendChild(opt1);
+        
+        const opt2 = document.createElement('option');
+        opt2.value = compSeguinte;
+        opt2.textContent = `${compSeguinte} (Próxima Competência)`;
+        compSelect.appendChild(opt2);
+        
+        // Popula select de remessas
+        const loteSelect = document.getElementById('env-sus-lote-select');
+        if (!loteSelect) {
+            alert("Erro: Elemento env-sus-lote-select não encontrado.");
+            return;
+        }
+        loteSelect.innerHTML = '';
+        
+        // Opção de criar nova remessa
+        const loteNovoNum = 'REM-' + getHoje().replace(/-/g, '') + '-' + Math.floor(100 + Math.random() * 900);
+        const optNovo = document.createElement('option');
+        optNovo.value = loteNovoNum;
+        optNovo.dataset.isNew = 'true';
+        optNovo.textContent = `[Nova Remessa] ${loteNovoNum}`;
+        loteSelect.appendChild(optNovo);
+        
+        // Opções de lotes em digitação
+        const lotesAbertos = db_oci_remessas.filter(r => r.status === 'Em Digitação');
+        lotesAbertos.forEach(r => {
+            const optAberto = document.createElement('option');
+            optAberto.value = r.id;
+            optAberto.dataset.isNew = 'false';
+            optAberto.dataset.competencia = r.competencia;
+            optAberto.textContent = `[Lote Aberto] ${r.id} (Comp: ${r.competencia})`;
+            loteSelect.appendChild(optAberto);
+        });
+        
+        // Ao mudar o lote, herda competência
+        loteSelect.onchange = () => {
+            const selectedOpt = loteSelect.selectedOptions[0];
+            if (selectedOpt && selectedOpt.dataset.isNew === 'false') {
+                compSelect.value = selectedOpt.dataset.competencia;
+                compSelect.disabled = true;
+            } else {
+                compSelect.disabled = false;
+            }
+        };
+        
+        compSelect.disabled = false;
+        openModal('modal-enviar-sus');
+        console.log("Modal de faturamento em lote aberto com sucesso.");
+    } catch (err) {
+        alert("Erro de execução em faturarTodosProcedimentos: " + err.message + "\nStack: " + err.stack);
+    }
 }
 
 function handleSaveEnviarSus(e) {
