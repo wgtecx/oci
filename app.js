@@ -3148,4 +3148,7 @@ function abrirDetalheRemessa(remessaId) {
 window.openConsolidadoOcisModal = openConsolidadoOcisModal;
 window.renderConsolidadoRemessasOcis = renderConsolidadoRemessasOcis;
 window.abrirDetalheRemessa = abrirDetalheRemessa;
+window.faturarTodosProcedimentos = faturarTodosProcedimentos;
+window.faturarProcedimento = faturarProcedimento;
+
 
