@@ -230,6 +230,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ações de execução da Navegação
     document.getElementById('form-execucao-proc').addEventListener('submit', handleSaveExecucao);
+    document.getElementById('select-exec-status').addEventListener('change', (e) => {
+        const labelData = document.querySelector('label[for="input-dt-realizacao"]');
+        if (e.target.value === 'Agendado') {
+            labelData.textContent = 'Data do Agendamento';
+        } else {
+            labelData.textContent = 'Data de Realização';
+        }
+    });
     
     // Ações do Faturamento
     document.getElementById('form-glosar-proc').addEventListener('submit', handleSaveGlosa);
@@ -633,7 +641,17 @@ function openAcompanharModal(ociPacienteId) {
         else statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Concluído</span>';
         
         let acaoBtn = '';
-        if (proc.status !== 'Realizado') {
+        if (proc.status === 'Agendado') {
+            const dtAgendamentoHtml = proc.dt_agendamento 
+                ? `<span style="font-size:0.75rem; color:var(--text-muted); margin-right:0.75rem;">Agendado: ${formatDate(proc.dt_agendamento)}</span>` 
+                : '';
+            acaoBtn = `
+                <div style="display:flex; align-items:center;">
+                    ${dtAgendamentoHtml}
+                    <button class="btn btn-sm btn-primary" onclick="openRegExecucao('${activeOciPaciente.id}', ${index})">Atualizar</button>
+                </div>
+            `;
+        } else if (proc.status === 'Pendente') {
             acaoBtn = `<button class="btn btn-sm btn-primary" onclick="openRegExecucao('${activeOciPaciente.id}', ${index})">Atualizar</button>`;
         } else {
             acaoBtn = `<span style="font-size:0.75rem; color:var(--text-muted);">${formatDate(proc.dt_execucao)}</span>`;
@@ -661,6 +679,20 @@ function openRegExecucao(ociId, index) {
     document.getElementById('exec-proc-nome').textContent = proc.nome;
     document.getElementById('exec-proc-index').value = index;
     
+    // Configura o select-exec-status com o status atual do procedimento (se for Pendente, sugere Agendado)
+    const selectStatus = document.getElementById('select-exec-status');
+    selectStatus.value = proc.status === 'Pendente' ? 'Agendado' : proc.status;
+    
+    // Altera o label da data de acordo com o status
+    const labelData = document.querySelector('label[for="input-dt-realizacao"]');
+    if (selectStatus.value === 'Agendado') {
+        labelData.textContent = 'Data do Agendamento';
+        document.getElementById('input-dt-realizacao').value = proc.dt_agendamento || getHoje();
+    } else {
+        labelData.textContent = 'Data de Realização';
+        document.getElementById('input-dt-realizacao').value = proc.dt_execucao || getHoje();
+    }
+    
     // Verifica se exige diagnósticos de Neoplasia (Atributo 055 para exames histopatológicos de onco)
     const oncoFields = document.getElementById('onco-required-fields');
     if (proc.exigeDiagnostico) {
@@ -672,7 +704,6 @@ function openRegExecucao(ociId, index) {
     }
     
     // Reseta inputs
-    document.getElementById('input-dt-realizacao').value = getHoje();
     document.getElementById('input-dt-laudo').value = '';
     
     openModal('modal-executar');
@@ -693,6 +724,8 @@ function handleSaveExecucao(e) {
         if (proc.exigeDiagnostico) {
             proc.dt_diagnostico = dtLaudo;
         }
+    } else if (status === 'Agendado') {
+        proc.dt_agendamento = dtRealizacao;
     }
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
