@@ -1053,8 +1053,7 @@ function closeModal(modalId) {
 // 11. Funções de Faturamento e Lote de Remessa SUS
 function openGerarRemessaModal() {
     // ID do lote sugerido
-    const loteNum = 'REM-' + getHoje().replace(/-/g, '') + '-' + Math.floor(100 + Math.random() * 900);
-    document.getElementById('remessa-id-input').value = loteNum;
+    const loteNovoNum = 'REM-' + getHoje().replace(/-/g, '') + '-' + Math.floor(100 + Math.random() * 900);
     
     // Competências SUS elegíveis
     const compSelect = document.getElementById('remessa-competencia-input');
@@ -1071,6 +1070,42 @@ function openGerarRemessaModal() {
     opt2.value = compSeguinte;
     opt2.textContent = `${compSeguinte} (Próxima Competência)`;
     compSelect.appendChild(opt2);
+    
+    // Popula o select de Remessa/Lote (Novo ou Existente aberto)
+    const loteSelect = document.getElementById('remessa-id-select');
+    loteSelect.innerHTML = '';
+    
+    // Opção Novo Lote
+    const optNovo = document.createElement('option');
+    optNovo.value = loteNovoNum;
+    optNovo.dataset.isNew = 'true';
+    optNovo.textContent = `[Novo Lote] ${loteNovoNum}`;
+    loteSelect.appendChild(optNovo);
+    
+    // Opções de Lotes Existentes Abertos
+    const lotesAbertos = db_oci_remessas.filter(r => r.status === 'Em Digitação');
+    lotesAbertos.forEach(r => {
+        const optAberto = document.createElement('option');
+        optAberto.value = r.id;
+        optAberto.dataset.isNew = 'false';
+        optAberto.dataset.competencia = r.competencia;
+        optAberto.textContent = `[Lote Aberto] ${r.id} (Comp: ${r.competencia})`;
+        loteSelect.appendChild(optAberto);
+    });
+    
+    // Ao alterar o lote, sincroniza a competência se for lote existente
+    loteSelect.onchange = () => {
+        const selectedOpt = loteSelect.selectedOptions[0];
+        if (selectedOpt && selectedOpt.dataset.isNew === 'false') {
+            compSelect.value = selectedOpt.dataset.competencia;
+            compSelect.disabled = true;
+        } else {
+            compSelect.disabled = false;
+        }
+    };
+    
+    // Inicializa estado do campo competência
+    compSelect.disabled = false;
     
     // Listar pacientes com itens faturados elegíveis (sem remessa)
     const listCheck = document.getElementById('remessa-pacientes-checklist');
@@ -1122,7 +1157,7 @@ function openGerarRemessaModal() {
 
 function handleSaveRemessa(e) {
     e.preventDefault();
-    const remessaId = document.getElementById('remessa-id-input').value;
+    const remessaId = document.getElementById('remessa-id-select').value;
     const competencia = document.getElementById('remessa-competencia-input').value;
     
     // Coleta pacientes selecionados
@@ -1145,9 +1180,8 @@ function handleSaveRemessa(e) {
     
     db_oci_pacientes = db_oci_pacientes.map(p => {
         if (pacientesSelecionados.includes(p.id)) {
-            // Determina o id_remessa destino: usa remessa existente aberta do paciente ou a nova
-            const remessaExistente = getRemessaAbertaDoPaciente(p);
-            const idRemessaDestino = remessaExistente ? remessaExistente.id : remessaId;
+            // Determina o id_remessa destino: usa diretamente a remessa selecionada
+            const idRemessaDestino = remessaId;
             
             // Marca o id_remessa em cada procedimento faturado SEM remessa ainda
             const procsAtualizados = p.procedimentos.map(proc => {
