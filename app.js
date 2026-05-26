@@ -1600,7 +1600,7 @@ function excluirRemessa(remessaId) {
         const procsAtualizados = p.procedimentos.map(proc => {
             if (proc.id_remessa === remessaId) {
                 pertenceAoLote = true;
-                return { ...proc, id_remessa: null };
+                return { ...proc, id_remessa: null, status_faturamento: 'Pendente', competencia: '' };
             }
             return proc;
         });
