@@ -6,9 +6,9 @@ Este é um protótipo de alta fidelidade desenvolvido para visualizar, testar e 
 
 ## 🚀 Como Executar o Protótipo
 
-1. Abra o arquivo `index.html` em qualquer navegador web moderno.
+1. Abra o arquivo `index.html` em qualquer navegador web moderno para acessar o painel geral (Faturamento, Navegação e Médico com credenciais), ou o arquivo `medico.html` para a versão direta e simplificada do Médico (sem login).
 2. O protótipo roda **100% no lado do cliente (Client-Side)**. Não há necessidade de instalar servidores locais, Node.js ou bancos de dados adicionais.
-3. Os dados simulados e as transações de faturamento são armazenados e persistidos localmente através do `LocalStorage` do próprio navegador.
+3. Os dados simulados e as transações de faturamento são armazenados e persistidos localmente de forma compartilhada através do `LocalStorage` do próprio navegador.
 
 ---
 
@@ -65,8 +65,10 @@ Acessível por todos os perfis a qualquer momento no cabeçalho superior:
 ## 📂 Arquivos do Projeto
 
 * `index.html`: Layout SPA estruturado em seções HTML5, tabelas, modais e formulários.
+* `medico.html`: Portal simplificado exclusivo para médicos, com acesso direto a atendimentos e modal de assinatura digital via CPF.
 * `style.css`: Estilo com design visual premium em Light Mode, fontes modernas (Plus Jakarta Sans), efeitos de glassmorphism, responsividade e paginação.
 * `app.js`: Motor de regras de faturamento, persistência LocalStorage, paginação, filtros de períodos, geração de lotes e formatação posicional de arquivos de texto DATASUS.
+* `medico.js`: Lógica do portal médico, controle de modais, validação e formatação de CPF para assinatura.
 * `Logo_Feluma.png`: Logomarca institucional exibida no cabeçalho e na tela de login.
 
 ---
