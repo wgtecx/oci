@@ -244,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('form-gerar-remessa').addEventListener('submit', handleSaveRemessa); // Lote remessa
     document.getElementById('form-transferir-paciente').addEventListener('submit', handleSaveTransferencia); // Transferência
     document.getElementById('form-enviar-sus').addEventListener('submit', handleSaveEnviarSus);
+    document.getElementById('form-pendencia-proc').addEventListener('submit', handleSavePendencia);
     
     // Ações de Login
     document.getElementById('form-login').addEventListener('submit', handleLoginSubmit);
@@ -571,6 +572,16 @@ function renderNavegacaoView() {
             prazoBadgeClass = 'badge-warning';
         }
         
+        const temPendencia = p.procedimentos.some(pr => pr.status_faturamento === 'Com Pendência');
+        let alertPendenciaHtml = '';
+        if (temPendencia) {
+            alertPendenciaHtml = `
+                <div style="background-color: var(--warning-glow); border: 1px solid var(--warning); color: #854d0e; font-size: 0.72rem; padding: 0.4rem 0.6rem; border-radius: 0.35rem; margin-top: 0.5rem; display: flex; align-items: center; gap: 0.35rem;">
+                    <span>⚠️ <strong>Pendência Faturamento</strong></span>
+                </div>
+            `;
+        }
+        
         const card = document.createElement('div');
         card.className = 'kanban-card';
         card.innerHTML = `
@@ -589,6 +600,7 @@ function renderNavegacaoView() {
                         <span class="badge-dot"></span>APAC Vigência: ${prazoInfo.competenciaLimite} (${prazoInfo.statusTexto})
                     </span>
                 </div>
+                ${alertPendenciaHtml}
             </div>
             
             <div style="margin-top: 0.75rem;">
@@ -636,12 +648,20 @@ function openAcompanharModal(ociPacienteId) {
         item.style.alignItems = 'center';
         
         let statusBadge = '';
-        if (proc.status === 'Pendente') statusBadge = '<span class="badge badge-warning"><span class="badge-dot"></span>Pendente</span>';
-        else if (proc.status === 'Agendado') statusBadge = '<span class="badge badge-info"><span class="badge-dot"></span>Agendado</span>';
-        else statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Concluído</span>';
+        let pendenciaLabelHtml = '';
+        if (proc.status_faturamento === 'Com Pendência') {
+            statusBadge = '<span class="badge badge-warning" style="background-color:var(--warning-glow); color:var(--warning);"><span class="badge-dot" style="background-color:var(--warning);"></span>Pendência</span>';
+            pendenciaLabelHtml = `<p style="font-size:0.72rem; color:var(--warning); margin-top:0.15rem; font-style:italic;"><strong>Pendência:</strong> ${proc.pendencia_descricao}</p>`;
+        } else {
+            if (proc.status === 'Pendente') statusBadge = '<span class="badge badge-warning"><span class="badge-dot"></span>Pendente</span>';
+            else if (proc.status === 'Agendado') statusBadge = '<span class="badge badge-info"><span class="badge-dot"></span>Agendado</span>';
+            else statusBadge = '<span class="badge badge-success"><span class="badge-dot"></span>Concluído</span>';
+        }
         
         let acaoBtn = '';
-        if (proc.status === 'Agendado') {
+        if (proc.status_faturamento === 'Com Pendência') {
+            acaoBtn = `<button class="btn btn-sm" style="background-color: var(--warning); border-color: var(--warning); color: #fff;" onclick="openRegExecucao('${activeOciPaciente.id}', ${index})">Resolver Pendência</button>`;
+        } else if (proc.status === 'Agendado') {
             const dtAgendamentoHtml = proc.dt_agendamento 
                 ? `<span style="font-size:0.75rem; color:var(--text-muted); margin-right:0.75rem;">Agendado: ${formatDate(proc.dt_agendamento)}</span>` 
                 : '';
@@ -661,6 +681,7 @@ function openAcompanharModal(ociPacienteId) {
             <div>
                 <p style="font-size:0.875rem; font-weight:600;">${proc.nome}</p>
                 <p style="font-size:0.75rem; color:var(--text-secondary);">${proc.codigo} • ${statusBadge}</p>
+                ${pendenciaLabelHtml}
             </div>
             <div>
                 ${acaoBtn}
@@ -678,6 +699,18 @@ function openRegExecucao(ociId, index) {
     
     document.getElementById('exec-proc-nome').textContent = proc.nome;
     document.getElementById('exec-proc-index').value = index;
+    
+    // Exibe alerta de pendência se houver
+    const alertBox = document.getElementById('pendencia-alerta-box');
+    const alertTexto = document.getElementById('pendencia-alerta-texto');
+    if (alertBox && alertTexto) {
+        if (proc.status_faturamento === 'Com Pendência') {
+            alertBox.style.display = 'flex';
+            alertTexto.textContent = proc.pendencia_descricao;
+        } else {
+            alertBox.style.display = 'none';
+        }
+    }
     
     // Configura o select-exec-status com o status atual do procedimento (se for Pendente, sugere Agendado)
     const selectStatus = document.getElementById('select-exec-status');
@@ -726,6 +759,14 @@ function handleSaveExecucao(e) {
         }
     } else if (status === 'Agendado') {
         proc.dt_agendamento = dtRealizacao;
+    }
+    
+    // Se resolveu a pendência
+    let resolvedMsg = '';
+    if (proc.status_faturamento === 'Com Pendência') {
+        proc.status_faturamento = 'Pendente'; // Retorna para faturamento normal
+        proc.pendencia_descricao = ''; // Limpa a pendência
+        resolvedMsg = '\n\n✅ A pendência foi marcada como resolvida e o procedimento reenviado para o faturamento!';
     }
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
@@ -854,12 +895,16 @@ function renderBillingItems(ociPaciente) {
         if (proc.id_remessa) {
             statusBadge = `<span class="badge badge-info"><span class="badge-dot"></span>Lote: ${proc.id_remessa}</span>`;
             acoesHtml = `<span style="font-size:0.75rem; color:var(--text-secondary);">Transmitido SUS</span>`;
+        } else if (proc.status_faturamento === 'Com Pendência') {
+            statusBadge = '<span class="badge badge-warning" style="background-color:var(--warning-glow); color:var(--warning);"><span class="badge-dot" style="background-color:var(--warning);"></span>Com Pendência</span>';
+            acoesHtml = `<span style="font-size:0.75rem; color:var(--warning); font-weight:600; display:block; text-align:right;" title="${proc.pendencia_descricao}">Aguardando Navegação</span>`;
         } else if (proc.status_faturamento === 'Pendente') {
             statusBadge = '<span class="badge badge-warning"><span class="badge-dot"></span>Não Faturado</span>';
             if (proc.status === 'Realizado') {
                 acoesHtml = `
                     <button class="btn btn-sm btn-primary" onclick="faturarProcedimento('${ociPaciente.id}', ${index})">Enviar SUS</button>
                     <button class="btn btn-sm" style="background-color:var(--danger-glow); border-color:var(--danger); color:var(--danger);" onclick="openGlosaModal('${ociPaciente.id}', ${index})">Glosar</button>
+                    <button class="btn btn-sm" style="background-color:var(--warning-glow); border-color:var(--warning); color:var(--warning);" onclick="openPendenciaModal('${ociPaciente.id}', ${index})">Alerta de Pendências</button>
                 `;
             } else {
                 acoesHtml = `<span style="font-size:0.75rem; color:var(--text-muted);">Aguardando realização pela Navegação</span>`;
@@ -867,15 +912,23 @@ function renderBillingItems(ociPaciente) {
         } else if (proc.status_faturamento === 'Faturado') {
             statusBadge = `<span class="badge badge-success"><span class="badge-dot"></span>Faturado (${proc.competencia})</span>`;
             acoesHtml = `
-                <button class="btn btn-sm" style="background-color:var(--danger-glow); border-color:var(--danger); color:var(--danger);" onclick="openGlosaModal('${ociPaciente.id}', ${index})">Glosar</button>
-                <span style="display:block; font-size:0.7rem; color:var(--success); margin-top:0.25rem;">Aguardando Lote</span>
+                <div style="display:flex; flex-direction:column; gap:0.25rem; align-items:flex-end;">
+                    <div style="display:flex; gap:0.25rem;">
+                        <button class="btn btn-sm" style="background-color:var(--danger-glow); border-color:var(--danger); color:var(--danger);" onclick="openGlosaModal('${ociPaciente.id}', ${index})">Glosar</button>
+                        <button class="btn btn-sm" style="background-color:var(--warning-glow); border-color:var(--warning); color:var(--warning);" onclick="openPendenciaModal('${ociPaciente.id}', ${index})">Alerta de Pendências</button>
+                    </div>
+                    <span style="display:block; font-size:0.7rem; color:var(--success); margin-top:0.25rem;">Aguardando Lote</span>
+                </div>
             `;
         } else if (proc.status_faturamento === 'Glosado') {
             statusBadge = `<span class="badge badge-danger"><span class="badge-dot"></span>GLOSADO SUS</span>`;
             acoesHtml = `
                 <div style="text-align:right;">
                     <span style="display:block; font-size:0.7rem; color:var(--danger); font-weight:600; margin-bottom:0.25rem;">Motivo: ${proc.motivo_glosa}</span>
-                    <button class="btn btn-sm btn-primary" onclick="reapresentarProcedimento('${ociPaciente.id}', ${index})">Corrigir e Reapresentar</button>
+                    <div style="display:flex; gap:0.25rem; justify-content:flex-end;">
+                        <button class="btn btn-sm btn-primary" onclick="reapresentarProcedimento('${ociPaciente.id}', ${index})">Corrigir e Reapresentar</button>
+                        <button class="btn btn-sm" style="background-color:var(--warning-glow); border-color:var(--warning); color:var(--warning);" onclick="openPendenciaModal('${ociPaciente.id}', ${index})">Alerta de Pendências</button>
+                    </div>
                 </div>
             `;
         } else if (proc.status_faturamento === 'Reapresentado') {
@@ -888,6 +941,11 @@ function renderBillingItems(ociPaciente) {
             oncoMetaHtml = `<span style="display:inline-block; margin-left:0.5rem; color:var(--success); font-size:0.7rem;">Laudo Neoplasia: ${formatDate(proc.dt_diagnostico)}</span>`;
         }
         
+        let pendenciaTextHtml = '';
+        if (proc.status_faturamento === 'Com Pendência' && proc.pendencia_descricao) {
+            pendenciaTextHtml = `<div style="font-size:0.72rem; color:var(--warning); margin-top:0.25rem;"><strong>Pendência:</strong> ${proc.pendencia_descricao}</div>`;
+        }
+        
         html += `
             <div class="billing-item">
                 <div class="billing-item-info">
@@ -898,6 +956,7 @@ function renderBillingItems(ociPaciente) {
                         <span style="margin-left:0.5rem;">Valor SUS: <strong>R$ 0,00 (Secundário APAC)</strong></span>
                         ${oncoMetaHtml}
                     </div>
+                    ${pendenciaTextHtml}
                     <div style="margin-top:0.25rem; display:flex; gap:0.25rem; align-items:center;">
                         ${execStatusBadge}
                         ${statusBadge}
@@ -1198,6 +1257,42 @@ function reapresentarProcedimento(ociPacienteId, index) {
     
     alert(`Item reapresentado com sucesso! Incluído na competência subsequente: ${proc.competencia}.`);
 }
+
+function openPendenciaModal(ociPacienteId, index) {
+    const oci = db_oci_pacientes.find(p => p.id === ociPacienteId);
+    const proc = oci.procedimentos[index];
+    
+    document.getElementById('pend-paciente-id').value = ociPacienteId;
+    document.getElementById('pend-proc-index').value = index;
+    document.getElementById('pend-paciente-nome').textContent = oci.nm_paciente;
+    document.getElementById('pend-proc-nome').textContent = proc.nome;
+    document.getElementById('input-pendencia-descricao').value = '';
+    
+    openModal('modal-pendencia');
+}
+
+function handleSavePendencia(e) {
+    e.preventDefault();
+    const ociPacienteId = document.getElementById('pend-paciente-id').value;
+    const index = parseInt(document.getElementById('pend-proc-index').value);
+    const descricao = document.getElementById('input-pendencia-descricao').value.trim();
+    
+    const oci = db_oci_pacientes.find(p => p.id === ociPacienteId);
+    const proc = oci.procedimentos[index];
+    
+    proc.status_faturamento = 'Com Pendência';
+    proc.pendencia_descricao = descricao;
+    
+    saveDb('oci_db_pacientes', db_oci_pacientes);
+    closeModal('modal-pendencia');
+    renderFaturamentoView();
+    renderStats();
+    
+    alert(`Alerta de Pendência enviado para a Navegação para o procedimento ${proc.nome}!`);
+}
+
+window.openPendenciaModal = openPendenciaModal;
+window.handleSavePendencia = handleSavePendencia;
 
 // 8. Métricas e Estatísticas Gerais
 function renderStats() {
@@ -1532,7 +1627,7 @@ function renderLotesRemessa() {
             
             // Badge de pendentes totais na OCI
             const pendenteBadge = pendentesOci > 0
-                ? `<span class="badge badge-info" style="font-size:0.58rem; padding:0.08rem 0.3rem; margin-left:0.2rem;" title="${pendentesOci} proc(s) ainda pendentes de faturamento na OCI">${pendentesOci} pendente${pendentesOci > 1 ? 's' : ''}</span>`
+                ? `<span class="badge badge-danger" style="font-size:0.58rem; padding:0.08rem 0.3rem; margin-left:0.2rem;" title="${pendentesOci} proc(s) ainda pendentes de faturamento na OCI">${pendentesOci} pendente${pendentesOci > 1 ? 's' : ''}</span>`
                 : '';
             
             let btnTransferir = '';
@@ -2556,6 +2651,7 @@ function renderPanoramaGeral() {
         let statusFatHtml = '';
         const totalFaturados = p.procedimentos.filter(pr => pr.status_faturamento === 'Faturado' || pr.status_faturamento === 'Reapresentado').length;
         const totalGlosados = p.procedimentos.filter(pr => pr.status_faturamento === 'Glosado').length;
+        const totalPendencias = p.procedimentos.filter(pr => pr.status_faturamento === 'Com Pendência').length;
         
         if (p.id_remessa) {
             const remessa = db_oci_remessas.find(r => r.id === p.id_remessa);
@@ -2591,6 +2687,8 @@ function renderPanoramaGeral() {
                         ? `<span class="badge badge-warning" style="font-size:0.65rem;">Lote Aberto + ${procsForaRemessa} novo(s)</span>`
                         : `<span class="badge badge-warning" style="font-size:0.65rem;">Lote Aberto (${idRemessaRef})</span>`;
                 }
+            } else if (totalPendencias > 0) {
+                statusFatHtml = `<span class="badge badge-warning" style="font-size:0.65rem; background-color: var(--warning-glow); color: var(--warning);"><span class="badge-dot" style="background-color: var(--warning);"></span>Pendência (${totalPendencias} itens)</span>`;
             } else if (totalGlosados > 0) {
                 statusFatHtml = `<span class="badge badge-danger" style="font-size:0.65rem;">Glosa Ativa (${totalGlosados} itens)</span>`;
             } else if (totalFaturados === totalP) {
@@ -2626,7 +2724,12 @@ function renderPanoramaGeral() {
         let ftText = 'FT';
         let ftTitle = 'Faturamento: ';
         
-        if (totalGlosados > 0) {
+        if (totalPendencias > 0) {
+            ftClass = 'pending';
+            ftLineClass = 'pending';
+            ftText = 'PE';
+            ftTitle += `${totalPendencias} procedimento(s) retornado(s) com pendência à Navegação.`;
+        } else if (totalGlosados > 0) {
             ftClass = 'glosed';
             ftLineClass = 'active';
             ftText = 'GL';
@@ -2762,6 +2865,8 @@ function abrirDetalhePanorama(pacienteId) {
         let statusFatBadge = '';
         if (proc.id_remessa) {
             statusFatBadge = `<span class="badge badge-info" style="font-size:0.65rem; padding:0.15rem 0.5rem;"><span class="badge-dot" style="background-color:#22d3ee;"></span>Lote: ${proc.id_remessa}</span>`;
+        } else if (proc.status_faturamento === 'Com Pendência') {
+            statusFatBadge = `<span class="badge badge-warning" style="font-size:0.65rem; padding:0.15rem 0.5rem; background-color: var(--warning-glow); color: var(--warning);" title="Pendência: ${proc.pendencia_descricao}"><span class="badge-dot" style="background-color:var(--warning);"></span>Com Pendência</span>`;
         } else if (proc.status_faturamento === 'Faturado') {
             statusFatBadge = `<span class="badge badge-success" style="font-size:0.65rem; padding:0.15rem 0.5rem;"><span class="badge-dot" style="background-color:#34d399;"></span>Faturado</span>`;
         } else if (proc.status_faturamento === 'Glosado') {
@@ -2782,6 +2887,11 @@ function abrirDetalhePanorama(pacienteId) {
             oncoMeta = `<div style="font-size:0.7rem; color:var(--text-secondary); margin-top:0.2rem;">Laudo Neoplasia: <strong style="color:var(--text-primary);">${formatDate(proc.dt_diagnostico)}</strong></div>`;
         }
         
+        let pendenciaMeta = '';
+        if (proc.status_faturamento === 'Com Pendência' && proc.pendencia_descricao) {
+            pendenciaMeta = `<div style="font-size:0.7rem; color:var(--warning); margin-top:0.2rem;">Pendência: <strong style="color:var(--text-primary);">${proc.pendencia_descricao}</strong></div>`;
+        }
+        
         item.innerHTML = `
             <div style="max-width:70%;">
                 <p style="font-size:0.82rem; font-weight:700; color:var(--text-primary);">${proc.nome}</p>
@@ -2791,6 +2901,7 @@ function abrirDetalhePanorama(pacienteId) {
                     ${metaExecucao}
                 </div>
                 ${oncoMeta}
+                ${pendenciaMeta}
             </div>
             <div style="display:flex; flex-direction:column; gap:0.3rem; align-items:flex-end;">
                 ${statusBadge}
