@@ -35,10 +35,12 @@ Ao abrir o protótipo, você verá uma tela de login moderna com controle de ace
 * **Controle de Vigência (Vigência de APAC - 2 Competências)**: Cálculo dinâmico indicando o prazo limite da APAC (*Vencido, Crítico, Normal*).
 * **Gestão de Exames**: Acompanhamento e atualização de exames para "Agendado" ou "Realizado" (com registro de data de conclusão).
 * **Validação Governamental (Atributo 055)**: Exigência obrigatória de preenchimento da Data do Laudo Histopatológico da Neoplasia em exames anatomopatológicos de Oncologia (regra governamental).
+* **Tratamento de Pendências**: Notificação visual de pendências do faturamento no card do Kanban e tela de resolução integrada (com exibição do motivo cadastrado) para saneamento rápido de inconsistências.
 
 ### 💼 3. Perfil Faturamento SUS (Lucas Mendes)
 * **Auditoria de Contas**: Validação individual dos exames realizados para aprovação ("Enviar SUS").
 * **Glosa e Reapresentação**: Permite simular a recusa governamental de exames (ex: CPF inconsistente, falta de laudo onco) e posterior reapresentação na competência SUS seguinte.
+* **Alerta de Pendências**: Opção de sinalizar pendências de preenchimento ou dados faltantes diretamente para a equipe de Navegação por meio de um modal descritivo (Alerta de Pendências), bloqueando o faturamento provisoriamente.
 * **Gerenciador de Tabelas OCI**: Painel para cadastrar e editar linhas OCI ativas e associar procedimentos secundários personalizados.
 * **Controle de Lotes de Remessa (SUS)**:
   * **Criação de Remessa**: Consolidar exames faturados em lotes de faturamento SUS.
@@ -55,7 +57,7 @@ Ao abrir o protótipo, você verá uma tela de login moderna com controle de ace
 Acessível por todos os perfis a qualquer momento no cabeçalho superior:
 * **KPIs Globais em Tempo Real**: Total de pacientes ativos, % de conclusão média de exames, Repasse Financeiro SUS previsto e Taxa de Glosa atual.
 * **Barra de Busca Inteligente**: Busca por nome, prontuário, CPF ou código da OCI.
-* **Trilha de Linha do Tempo Visual**: Acompanhamento gráfico dos 4 marcos de evolução de cada paciente: `PR` (Prescrito) -> `NV` (Navegação) -> `FT/GL` (Faturado/Glosado) -> `SUS/REJ` (Resposta do SUS).
+* **Trilha de Linha do Tempo Visual**: Acompanhamento gráfico dos 4 marcos de evolução de cada paciente: `PR` (Prescrito) -> `NV` (Navegação) -> `FT/GL/PE` (Faturado/Glosado/Pendente) -> `SUS/REJ` (Resposta do SUS).
 * **Modal de Detalhamento de 3º Nível**: Ao clicar em qualquer linha do Panorama, abre-se uma tela detalhada com o progresso individual de cada exame.
 
 ---

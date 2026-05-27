@@ -371,6 +371,15 @@
                 <div class="modal-body">
                     <p style="font-size: 0.9rem; font-weight: 600; margin-bottom: 1rem;" id="exec-proc-nome">-</p>
                     
+                    <!-- Alerta de Pendência do Faturamento -->
+                    <div class="alert-box alert-box-warning" id="pendencia-alerta-box" style="display:none; background-color: var(--warning-glow); border: 1px solid var(--warning); color: #854d0e; margin-bottom: 1rem; padding: 0.75rem; border-radius: 0.5rem; font-size: 0.8rem; align-items: flex-start; gap: 0.5rem;">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="flex-shrink: 0; margin-top: 2px;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                        <div>
+                            <strong style="display: block; margin-bottom: 0.15rem;">Pendência do Faturamento:</strong>
+                            <span id="pendencia-alerta-texto">-</span>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="select-exec-status">Status do Procedimento</label>
                         <select id="select-exec-status" class="select-input" required>
@@ -931,6 +940,37 @@
                 <div class="modal-footer">
                     <button type="button" class="btn" onclick="closeModal('modal-enviar-sus')">Cancelar</button>
                     <button type="submit" class="btn btn-primary">Faturar e Associar ao Lote</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <!-- MODAL 12: REGISTRAR ALERTA DE PENDÊNCIA (FATURAMENTO -> NAVEGAÇÃO) -->
+    <div id="modal-pendencia" class="modal-overlay" style="z-index: 1100;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <h3>Registrar Pendência na Navegação</h3>
+                </div>
+                <button class="modal-close" onclick="closeModal('modal-pendencia')">&times;</button>
+            </div>
+            <form id="form-pendencia-proc">
+                <input type="hidden" id="pend-paciente-id">
+                <input type="hidden" id="pend-proc-index">
+                <div class="modal-body">
+                    <div style="background-color: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1.25rem;">
+                        <p style="font-size:0.875rem;">Paciente: <strong id="pend-paciente-nome">-</strong></p>
+                        <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.25rem;">Procedimento: <strong id="pend-proc-nome">-</strong></p>
+                    </div>
+                    <div class="form-group">
+                        <label for="input-pendencia-descricao">Descreva a Pendência <span style="color: var(--danger);">*</span></label>
+                        <textarea id="input-pendencia-descricao" rows="4" required
+                            style="width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.85rem; background: var(--bg-secondary); color: var(--text-primary); resize: vertical; font-family: inherit;"
+                            placeholder="Ex: Falta preencher a data correta da biópsia ou o laudo do exame no prontuário..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn" onclick="closeModal('modal-pendencia')">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" style="background-color: var(--warning); border-color: var(--warning);">Enviar para Navegação</button>
                 </div>
             </form>
         </div>
