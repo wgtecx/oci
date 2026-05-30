@@ -3013,6 +3013,7 @@ function renderConsolidadoRemessasOcis() {
     const examesEmRemessas = [];
     
     db_oci_pacientes.forEach(p => {
+        if (!p.procedimentos) return;
         p.procedimentos.forEach(proc => {
             // Usa proc.id_remessa (nivel de procedimento)
             if (proc.id_remessa) {
@@ -3073,12 +3074,22 @@ function renderConsolidadoRemessasOcis() {
             const p = ex.paciente;
             const proc = ex.procedimento;
             
-            // Simula data de agendamento como 1 dia útil após a solicitação
-            let dtAgendamento = '-';
-            if (proc.status === 'Agendado' || proc.status === 'Realizado') {
-                const solicitacaoDate = new Date(proc.dt_solicitacao || p.dt_criacao);
-                solicitacaoDate.setDate(solicitacaoDate.getDate() + 1);
-                dtAgendamento = solicitacaoDate.toISOString().split('T')[0];
+            // Simula data de agendamento como 1 dia útil após a solicitação ou usa dt_agendamento real
+            let dtAgendamentoStr = '-';
+            if (proc.dt_agendamento) {
+                dtAgendamentoStr = proc.dt_agendamento;
+            } else if (proc.status === 'Agendado' || proc.status === 'Realizado') {
+                const baseDateStr = proc.dt_solicitacao || p.dt_criacao;
+                if (baseDateStr) {
+                    try {
+                        const solicitacaoDate = new Date(baseDateStr + 'T00:00:00');
+                        solicitacaoDate.setDate(solicitacaoDate.getDate() + 1);
+                        dtAgendamentoStr = solicitacaoDate.toISOString().split('T')[0];
+                    } catch (err) {
+                        console.error("Erro ao simular data de agendamento:", err);
+                        dtAgendamentoStr = baseDateStr;
+                    }
+                }
             }
             
             tbodyHtml += `
@@ -3091,7 +3102,7 @@ function renderConsolidadoRemessasOcis() {
                         <strong>${proc.nome}</strong>
                         <span style="display:block; font-size:0.65rem; color:var(--text-muted); font-family:monospace;">${proc.codigo}</span>
                     </td>
-                    <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">${formatDate(dtAgendamento)}</td>
+                    <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">${formatDate(dtAgendamentoStr)}</td>
                     <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">${formatDate(proc.dt_execucao || '-')}</td>
                     <td style="padding: 0.65rem 0.85rem; white-space:nowrap;">
                         ${formatDate(ex.dtInclusaoLote)}
@@ -3118,7 +3129,7 @@ function renderConsolidadoRemessasOcis() {
                     ${grupo.exames.length} procedimento(s)
                 </span>
             </div>
-            <div style="overflow-x: auto; padding: 0.25rem;">
+            <div style="max-height: 250px; overflow-y: auto; overflow-x: auto; padding: 0.25rem;">
                 <table style="width: 100%; border-collapse: collapse; text-align: left; min-width: 900px;">
                     <thead>
                         <tr style="font-size: 0.68rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 1px solid var(--border-color); background-color: rgba(0,0,0,0.015);">
