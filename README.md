@@ -6,7 +6,7 @@ Este é um protótipo de alta fidelidade desenvolvido para visualizar, testar e 
 
 ## 🚀 Como Executar o Protótipo
 
-1. Abra o arquivo `index.html` em qualquer navegador web moderno para acessar o painel geral (Faturamento, Navegação e Médico com credenciais), ou o arquivo `medico.html` para a versão direta e simplificada do Médico (sem login).
+1. Abra o arquivo `index.html` em qualquer navegador web moderno para acessar o painel geral (Navegação e Faturamento com credenciais).
 2. O protótipo roda **100% no lado do cliente (Client-Side)**. Não há necessidade de instalar servidores locais, Node.js ou bancos de dados adicionais.
 3. Os dados simulados e as transações de faturamento são armazenados e persistidos localmente de forma compartilhada através do `LocalStorage` do próprio navegador.
 
@@ -15,7 +15,7 @@ Este é um protótipo de alta fidelidade desenvolvido para visualizar, testar e 
 ## 🔐 Controle de Acesso (Login Simulador)
 
 Ao abrir o protótipo, você verá uma tela de login moderna com controle de acesso simulado:
-* **Perfis de Teste**: Selecione o perfil desejado na lista suspensa (Médico, Navegação ou Faturamento).
+* **Perfis de Teste**: Selecione o perfil desejado na lista suspensa (Navegação ou Faturamento).
 * **Senha Padrão**: Digite a senha padrão `123456`.
 * **Segregação de Funções**: Ao efetuar o login, o sistema oculta a barra superior de abas de desenvolvimento para simular fielmente a experiência do usuário em seu respectivo papel dentro do hospital.
 * **Logout**: Clique no botão **"Sair"** no canto superior direito para deslogar e testar o fluxo sob outro perfil de usuário.
@@ -24,20 +24,17 @@ Ao abrir o protótipo, você verá uma tela de login moderna com controle de ace
 
 ## 📑 Funcionalidades Principais por Perfil
 
-### 🩺 1. Perfil Médico (Dr. Fernando Silva)
-* **Atendimentos SoulMV (Oracle)**: Lista de consultas realizadas na Atenção Especializada pendentes de OCI.
-* **Filtros e Paginação**: Busca reativa por nome/atendimento, filtros de datas do período e paginação de 5 itens por página.
-* **Ação "Incluir OCI"**: Abre o modal de prescrição carregando automaticamente os exames secundários baseados nas portarias do SUS (**Portarias SAES/MS 1.822 e 1.824**).
-* **Ação "Incluso"**: Quando um paciente já está na OCI, o botão fica verde. Ao clicar nele, abre-se um modal detalhado (3º nível) exibindo os procedimentos prescritos e seus respectivos status clínicos e financeiros.
-
-### 🤝 2. Perfil Navegação (Aline Fonseca)
-* **Painel Kanban de Cuidados**: Cards de pacientes ativos na linha de cuidado OCI.
+### 🤝 1. Perfil Navegação (Aline Fonseca)
+* **Novas Inclusões (Atendimentos SoulMV)**: Visualiza a lista de todos os atendimentos pendentes de inclusão na OCI realizados no hospital.
+* **Inclusão de OCI**: Realiza a inclusão do paciente conforme os procedimentos e especialidades exigidos, e informa obrigatoriamente quem é o **Médico Responsável pela Inclusão**.
+* **Cancelamento de Inclusão (Janela de 2h)**: Permite desfazer uma inclusão de OCI incorreta de forma autônoma dentro de um limite de 2 horas. O cancelamento exige justificativa (motivo) e faz com que o atendimento do SoulMV volte a ficar disponível para nova inclusão.
+* **Painel Kanban de Cuidados**: Cards de pacientes ativos sob monitoramento, mostrando o médico responsável associado e o progresso clínico.
 * **Controle de Vigência (Vigência de APAC - 2 Competências)**: Cálculo dinâmico indicando o prazo limite da APAC (*Vencido, Crítico, Normal*).
 * **Gestão de Exames**: Acompanhamento e atualização de exames para "Agendado" ou "Realizado" (com registro de data de conclusão).
 * **Validação Governamental (Atributo 055)**: Exigência obrigatória de preenchimento da Data do Laudo Histopatológico da Neoplasia em exames anatomopatológicos de Oncologia (regra governamental).
 * **Tratamento de Pendências**: Notificação visual de pendências do faturamento no card do Kanban e tela de resolução integrada (com exibição do motivo cadastrado) para saneamento rápido de inconsistências.
 
-### 💼 3. Perfil Faturamento SUS (Lucas Mendes)
+### 💼 2. Perfil Faturamento SUS (Lucas Mendes)
 * **Auditoria de Contas**: Validação individual dos exames realizados para aprovação ("Enviar SUS").
 * **Glosa e Reapresentação**: Permite simular a recusa governamental de exames (ex: CPF inconsistente, falta de laudo onco) e posterior reapresentação na competência SUS seguinte.
 * **Alerta de Pendências**: Opção de sinalizar pendências de preenchimento ou dados faltantes diretamente para a equipe de Navegação por meio de um modal descritivo (Alerta de Pendências), bloqueando o faturamento provisoriamente.
@@ -48,7 +45,7 @@ Ao abrir o protótipo, você verá uma tela de login moderna com controle de ace
   * **Transferência de Lotes**: Permite transferir a conta do paciente com pendências para outro lote (aberto ou novo) para não atrasar o repasse dos demais exames concluídos.
   * **Exportação DATASUS**: Geração do arquivo texto posicional de faturamento SUS no layout posicional da portaria do APAC Magnético (`AM310001[COMP].TXT`).
   * **Simulador de Auditoria SUS**: Permite simular a aprovação (libera o repasse) ou rejeição total do lote (todas as contas retornam à fila com status de Glosa).
-  * **Consolidado OCI**: Relatório gerencial de exames agrupados por OCI com metadados detalhados de Paciente, Procedimento, Data Agendamento, Data Realização, Data Inclusão Remessa, Data Envio Remessa e Usuário/Operadores.
+  * **Consolidado OCI**: Relatório gerencial de exames agrupados por OCI com metadados detalhados de Paciente, Procedimento, Data Agendamento, Data Realização, Data Inclusão Remessa, Data Envio Remessa e Usuário/Operadores. Possui rolagem vertical interna individual por OCI para melhor legibilidade visual e prevenção de erros de timezone no parseamento de datas.
 
 ---
 
@@ -64,11 +61,9 @@ Acessível por todos os perfis a qualquer momento no cabeçalho superior:
 
 ## 📂 Arquivos do Projeto
 
-* `index.html`: Layout SPA estruturado em seções HTML5, tabelas, modais e formulários.
-* `medico.html`: Portal simplificado exclusivo para médicos, com acesso direto a atendimentos e modal de assinatura digital via CPF.
+* `index.html`: Layout SPA estruturado em seções HTML5, tabelas, modais e formulários (Navegação de Cuidados e Faturamento SUS).
 * `style.css`: Estilo com design visual premium em Light Mode, fontes modernas (Plus Jakarta Sans), efeitos de glassmorphism, responsividade e paginação.
-* `app.js`: Motor de regras de faturamento, persistência LocalStorage, paginação, filtros de períodos, geração de lotes e formatação posicional de arquivos de texto DATASUS.
-* `medico.js`: Lógica do portal médico, controle de modais, validação e formatação de CPF para assinatura.
+* `app.js`: Motor de regras da plataforma (inclusão de pacientes, navegação e faturamento), persistência LocalStorage, paginação, filtros de períodos, geração de lotes e exportação posicional de remessas SIA/SUS.
 * `Logo_Feluma.png`: Logomarca institucional exibida no cabeçalho e na tela de login.
 
 ---
