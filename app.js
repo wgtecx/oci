@@ -2468,9 +2468,17 @@ function renderTempProcedures() {
         item.style.justifyContent = 'space-between';
         item.style.alignItems = 'center';
         
-        const badgeObrigatorioHtml = proc.obrigatorio !== false
-            ? `<span style="color:var(--accent); font-size:0.7rem; font-weight:700; margin-left:0.25rem;">[OBRIGATÓRIO]</span>`
-            : `<span style="color:var(--text-muted); font-size:0.7rem; font-weight:500; margin-left:0.25rem;">[OPCIONAL]</span>`;
+        const badgeObrigatorioHtml = `
+            <button type="button" class="btn btn-sm" 
+                style="font-size:0.65rem; padding:0.15rem 0.4rem; font-weight:700; margin-left:0.25rem; cursor:pointer; 
+                background-color: ${proc.obrigatorio !== false ? 'var(--accent-glow)' : 'var(--bg-primary)'}; 
+                color: ${proc.obrigatorio !== false ? 'var(--accent)' : 'var(--text-muted)'}; 
+                border-color: ${proc.obrigatorio !== false ? 'var(--accent)' : 'var(--border-color)'};" 
+                onclick="toggleObrigatorioTemporario(${index})" 
+                title="Clique para alternar entre Obrigatório e Opcional">
+                ${proc.obrigatorio !== false ? '⚠️ Obrigatório' : '✏️ Opcional'}
+            </button>
+        `;
             
         item.innerHTML = `
             <div class="checklist-item-label">
@@ -2491,6 +2499,15 @@ function removerProcedimentoTemporario(index) {
     tempProcedures.splice(index, 1);
     renderTempProcedures();
 }
+
+function toggleObrigatorioTemporario(index) {
+    const proc = tempProcedures[index];
+    if (proc) {
+        proc.obrigatorio = proc.obrigatorio === false ? true : false;
+        renderTempProcedures();
+    }
+}
+window.toggleObrigatorioTemporario = toggleObrigatorioTemporario;
 
 function handleSaveNovaOci(e) {
     e.preventDefault();
