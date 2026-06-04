@@ -3421,5 +3421,6 @@ window.renderConsolidadoRemessasOcis = renderConsolidadoRemessasOcis;
 window.abrirDetalheRemessa = abrirDetalheRemessa;
 window.faturarTodosProcedimentos = faturarTodosProcedimentos;
 window.faturarProcedimento = faturarProcedimento;
+window.resetSimulador = resetSimulador;
 
 
