@@ -1856,6 +1856,9 @@ function renderLotesRemessa() {
             acoesHtml = `<span style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem; display:block;">Lote encerrado por rejeição na auditoria.</span>`;
         }
         
+        const ociDef = db_oci_definitions[r.oci_key];
+        const ociNome = ociDef ? ociDef.nome : 'Sem OCI Vinculada';
+
         const card = document.createElement('div');
         card.style.backgroundColor = 'var(--bg-tertiary)';
         card.style.border = '1px solid var(--border-color)';
@@ -1873,7 +1876,8 @@ function renderLotesRemessa() {
             </div>
             
             <div style="font-size:0.75rem; color:var(--text-secondary); margin-bottom:0.5rem;">
-                <p>Competência: <strong>${r.competencia}</strong> | Fechamento: <strong>${formatDate(r.dt_fechamento)}</strong></p>
+                <p style="margin-bottom:0.15rem;">Linha OCI: <strong style="color:var(--accent);">${ociNome}</strong></p>
+                <p style="margin-bottom:0.15rem;">Competência: <strong>${r.competencia}</strong> | Fechamento: <strong>${formatDate(r.dt_fechamento)}</strong></p>
                 <p>Valor Lote: <strong style="color:var(--success);">R$ ${r.valor_total.toFixed(2)}</strong></p>
             </div>
             
