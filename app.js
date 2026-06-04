@@ -210,7 +210,7 @@ let currentPageInclusao = 1;
 const itemsPerPageInclusao = 5;
 
 let currentPageNavegacao = 1;
-const itemsPerPageNavegacao = 4;
+const itemsPerPageNavegacao = 6;
 
 let currentPageFaturamento = 1;
 const itemsPerPageFaturamento = 3;
