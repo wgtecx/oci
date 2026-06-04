@@ -187,14 +187,14 @@ let db_oci_remessas = getDb('oci_db_remessas', []); // Banco de remessas/faturas
 let db_oci_definitions = getDb('oci_db_definitions', OCI_DEFINITIONS);
 
 // Variáveis Globais de Operação
-let currentProfile = 'medico';
+let currentProfile = 'navegacao';
 let activeAtendimento = null; // Para o modal do médico
 let activeOciPaciente = null; // Para o modal da navegação/faturamento
 let activeBillingItem = null; // Para o modal de glosa
 
 // Estados de Paginação e Filtros
-let currentPageMedico = 1;
-const itemsPerPageMedico = 5;
+let currentPageInclusao = 1;
+const itemsPerPageInclusao = 5;
 
 let currentPageNavegacao = 1;
 const itemsPerPageNavegacao = 4;
@@ -204,7 +204,7 @@ const itemsPerPageFaturamento = 3;
 
 // 3. Inicialização e Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
-    switchProfile('medico');
+    switchProfile('navegacao');
     renderStats();
     
     // Configura botões de navegação de perfil
@@ -274,14 +274,10 @@ function switchProfile(profile) {
     // Atualiza cabeçalho do usuário simulado
     const userRoleSpan = document.querySelector('.user-role');
     const userNameSpan = document.querySelector('.user-name');
-    if (profile === 'medico') {
-        userNameSpan.textContent = 'Dr. Fernando Silva';
-        userRoleSpan.textContent = 'Médico Prestador';
-        renderMedicoView();
-    } else if (profile === 'navegacao') {
+    if (profile === 'navegacao') {
         userNameSpan.textContent = 'Aline Fonseca';
         userRoleSpan.textContent = 'Navegação de Cuidados';
-        renderNavegacaoView();
+        switchNavegacaoTab('acompanhamento');
     } else {
         userNameSpan.textContent = 'Lucas Mendes';
         userRoleSpan.textContent = 'Faturamento SUS';
@@ -291,19 +287,53 @@ function switchProfile(profile) {
     renderStats();
 }
 
-// 5. Visão do Médico
-function renderMedicoView() {
-    const searchVal = document.getElementById('search-medico').value.toLowerCase();
-    const dateStart = document.getElementById('medico-date-start').value;
-    const dateEnd = document.getElementById('medico-date-end').value;
+function switchNavegacaoTab(tab) {
+    document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.style.backgroundColor = 'var(--bg-tertiary)';
+        btn.style.color = 'var(--text-primary)';
+        btn.style.borderColor = 'var(--border-color)';
+        btn.style.boxShadow = 'none';
+    });
+    document.querySelectorAll('.subtab-content').forEach(content => content.style.display = 'none');
     
-    const tbody = document.getElementById('table-medico-body');
+    const activeBtn = document.getElementById(`subtab-btn-${tab}`);
+    const activeContent = document.getElementById(`subtab-content-${tab}`);
+    
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+        activeBtn.style.backgroundColor = 'var(--accent)';
+        activeBtn.style.color = '#fff';
+        activeBtn.style.borderColor = 'var(--accent)';
+        activeBtn.style.boxShadow = '0 4px 12px rgba(37, 99, 235, 0.25)';
+    }
+    if (activeContent) {
+        activeContent.style.display = 'block';
+    }
+    
+    if (tab === 'acompanhamento') {
+        renderNavegacaoView();
+    } else if (tab === 'inclusao') {
+        renderInclusaoView();
+    }
+}
+window.switchNavegacaoTab = switchNavegacaoTab;
+
+
+// 5. Visão de Inclusão (Navegação - Atendimentos SoulMV)
+function renderInclusaoView() {
+    const searchVal = document.getElementById('search-inclusao').value.toLowerCase();
+    const dateStart = document.getElementById('inclusao-date-start').value;
+    const dateEnd = document.getElementById('inclusao-date-end').value;
+    
+    const tbody = document.getElementById('table-inclusao-body');
     tbody.innerHTML = '';
     
-    // 1. Filtrar atendimentos do Dr. Fernando Silva que batem com a busca e o período
+    // 1. Filtrar atendimentos pendentes do SoulMV que batem com a busca e o período
     const filtrados = db_soulmv.filter(at => {
-        const matchPrestador = at.prestador === 'Dr. Fernando Silva';
-        const matchSearch = at.nm_paciente.toLowerCase().includes(searchVal) || at.cd_atendimento.includes(searchVal);
+        const matchSearch = at.nm_paciente.toLowerCase().includes(searchVal) || 
+                            at.cd_atendimento.includes(searchVal) ||
+                            (at.prestador && at.prestador.toLowerCase().includes(searchVal));
         
         let matchDate = true;
         if (dateStart) {
@@ -313,19 +343,19 @@ function renderMedicoView() {
             matchDate = matchDate && (at.dt_atendimento <= dateEnd);
         }
         
-        return matchPrestador && matchSearch && matchDate;
+        return matchSearch && matchDate;
     });
     
     const totalItems = filtrados.length;
     
     // 2. Fatiar dados para a página ativa
-    const start = (currentPageMedico - 1) * itemsPerPageMedico;
-    const end = start + itemsPerPageMedico;
+    const start = (currentPageInclusao - 1) * itemsPerPageInclusao;
+    const end = start + itemsPerPageInclusao;
     const paginados = filtrados.slice(start, end);
     
     if (paginados.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">Nenhum atendimento pendente de OCI localizado.</td></tr>`;
-        renderPagination('medico-pagination', 0, itemsPerPageMedico, currentPageMedico, 'changePageMedico');
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted);">Nenhum atendimento pendente de OCI localizado.</td></tr>`;
+        renderPagination('inclusao-pagination', 0, itemsPerPageInclusao, currentPageInclusao, 'changePageInclusao');
         return;
     }
     
@@ -362,6 +392,7 @@ function renderMedicoView() {
             <td>${formatDate(at.dt_atendimento)}</td>
             <td>${at.cd_paciente}</td>
             <td><strong>${at.nm_paciente}</strong></td>
+            <td>🩺 <strong>${at.prestador || '-'}</strong></td>
             <td>${at.especialidade}</td>
             <td>
                 ${at.fl_oci_criada 
@@ -372,7 +403,7 @@ function renderMedicoView() {
             <td>
                 ${at.fl_oci_criada 
                     ? `<div style="display:flex; align-items:center; gap:0.25rem; flex-wrap:wrap;">
-                        <button class="btn btn-sm" onclick="abrirDetalheOciMedico('${at.cd_atendimento}')" style="background-color: var(--success-glow); color: var(--success); border-color: var(--success); cursor: pointer;" title="Visualizar detalhamento da OCI deste paciente">Incluso</button>
+                        <button class="btn btn-sm" onclick="abrirDetalheOciInclusao('${at.cd_atendimento}')" style="background-color: var(--success-glow); color: var(--success); border-color: var(--success); cursor: pointer;" title="Visualizar detalhamento da OCI deste paciente">Incluso</button>
                         ${cancelarBtn}
                        </div>`
                     : `<button class="btn btn-primary btn-sm" onclick="openOciModal('${at.cd_atendimento}')">Incluir OCI</button>`
@@ -383,7 +414,7 @@ function renderMedicoView() {
     });
     
     // 3. Renderizar controles de paginação
-    renderPagination('medico-pagination', totalItems, itemsPerPageMedico, currentPageMedico, 'changePageMedico');
+    renderPagination('inclusao-pagination', totalItems, itemsPerPageInclusao, currentPageInclusao, 'changePageInclusao');
 }
 
 function openOciModal(cd_atendimento) {
@@ -395,6 +426,9 @@ function openOciModal(cd_atendimento) {
     document.getElementById('modal-paciente-cns').textContent = activeAtendimento.nr_cns;
     document.getElementById('modal-paciente-cpf').textContent = activeAtendimento.nr_cpf;
     document.getElementById('modal-paciente-pront').textContent = activeAtendimento.cd_paciente;
+    
+    // Pré-preenche o médico responsável com o prestador do atendimento original do SoulMV
+    document.getElementById('input-medico-responsavel').value = activeAtendimento.prestador || '';
     
     // Configura os selects de acordo com a especialidade
     const selectOci = document.getElementById('select-oci-tipo');
@@ -447,6 +481,12 @@ function handleInsertOci(e) {
         return;
     }
     
+    const medicoResponsavel = document.getElementById('input-medico-responsavel').value.trim();
+    if (!medicoResponsavel) {
+        alert('Por favor, informe o médico responsável pela inclusão.');
+        return;
+    }
+    
     const ociDef = db_oci_definitions[ociKey];
     
     // Obter os procedimentos selecionados
@@ -485,7 +525,7 @@ function handleInsertOci(e) {
         nm_paciente: activeAtendimento.nm_paciente,
         nr_cpf: activeAtendimento.nr_cpf,
         nr_cns: activeAtendimento.nr_cns,
-        prestador: activeAtendimento.prestador || 'Dr. Fernando Silva',
+        prestador: medicoResponsavel,
         unidade: activeAtendimento.unidade || 'HUCM',
         oci_key: ociKey,
         oci_codigo: ociDef.codigo,
@@ -512,7 +552,7 @@ function handleInsertOci(e) {
     saveDb('oci_db_soulmv', db_soulmv);
     
     closeModal();
-    renderMedicoView();
+    renderInclusaoView();
     renderStats();
     
     // Feedback visual com aviso da janela de cancelamento
@@ -594,7 +634,7 @@ function renderNavegacaoView() {
             <h4 class="card-patient-name">${p.nm_paciente}</h4>
             <div class="card-details">
                 <p>Prontuário: <strong>${p.cd_paciente}</strong> | Atend: <strong>${p.cd_atendimento}</strong> | Unidade: <strong>${p.unidade || 'HUCM'}</strong></p>
-                <p>Inclusão: <strong>${formatDate(p.dt_criacao)}</strong></p>
+                <p>Inclusão: <strong>${formatDate(p.dt_criacao)}</strong> | Médico: <strong>${p.prestador || 'Não informado'}</strong></p>
                 <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem; align-items:center;">
                     <span class="badge ${prazoBadgeClass} btn-sm" style="font-size:0.65rem;">
                         <span class="badge-dot"></span>APAC Vigência: ${prazoInfo.competenciaLimite} (${prazoInfo.statusTexto})
@@ -623,7 +663,7 @@ function renderNavegacaoView() {
     // 3. Renderizar controles de paginação
     renderPagination('navegacao-pagination', totalItems, itemsPerPageNavegacao, currentPageNavegacao, 'changePageNavegacao');
 }
-
+ 
 function openAcompanharModal(ociPacienteId) {
     activeOciPaciente = db_oci_pacientes.find(p => p.id === ociPacienteId);
     if (!activeOciPaciente) return;
@@ -631,6 +671,7 @@ function openAcompanharModal(ociPacienteId) {
     document.getElementById('acomp-paciente-nome').textContent = activeOciPaciente.nm_paciente;
     document.getElementById('acomp-oci-nome').textContent = activeOciPaciente.oci_nome;
     document.getElementById('acomp-dt-criacao').textContent = formatDate(activeOciPaciente.dt_criacao);
+    document.getElementById('acomp-medico-responsavel').textContent = activeOciPaciente.prestador || 'Não informado';
     
     // Lista de procedimentos com ações individuais
     const container = document.getElementById('acomp-procedimentos-lista');
@@ -1296,9 +1337,12 @@ window.handleSavePendencia = handleSavePendencia;
 
 // 8. Métricas e Estatísticas Gerais
 function renderStats() {
-    // Médico: Atendimentos Pendentes no SoulMV
-    const atendimentosPendentes = db_soulmv.filter(at => at.prestador === 'Dr. Fernando Silva' && !at.fl_oci_criada).length;
-    document.getElementById('stat-medico-pendentes').textContent = atendimentosPendentes;
+    // Navegação: Atendimentos Pendentes no SoulMV (para inclusão)
+    const atendimentosPendentes = db_soulmv.filter(at => !at.fl_oci_criada).length;
+    const statInclusaoEl = document.getElementById('stat-inclusao-pendentes');
+    if (statInclusaoEl) {
+        statInclusaoEl.textContent = atendimentosPendentes;
+    }
     
     // Navegação: Total de pacientes ativos na OCI (que não estão fechadas)
     const ociAtivas = db_oci_pacientes.filter(p => p.status !== 'Fechada').length;
@@ -2531,9 +2575,9 @@ function renderPagination(containerId, totalItems, itemsPerPage, currentPage, on
     container.innerHTML = html;
 }
 
-function changePageMedico(page) {
-    currentPageMedico = page;
-    renderMedicoView();
+function changePageInclusao(page) {
+    currentPageInclusao = page;
+    renderInclusaoView();
 }
 
 function changePageNavegacao(page) {
@@ -2546,13 +2590,13 @@ function changePageFaturamento(page) {
     renderFaturamentoView();
 }
 
-function resetPageMedicoAndRender() {
-    currentPageMedico = 1;
-    renderMedicoView();
+function resetPageInclusaoAndRender() {
+    currentPageInclusao = 1;
+    renderInclusaoView();
 }
 
 // Expõe também com nomes mais comuns para evitar colisões
-window.resetPageMedicoAndRender = resetPageMedicoAndRender;
+window.resetPageInclusaoAndRender = resetPageInclusaoAndRender;
 
 function resetPageNavegacaoAndRender() {
     currentPageNavegacao = 1;
@@ -2570,7 +2614,7 @@ window.resetPageFaturamentoAndRender = resetPageFaturamentoAndRender;
 
 // Expõe explicitamente no escopo global window para acesso de handlers inline do HTML
 window.renderPagination = renderPagination;
-window.changePageMedico = changePageMedico;
+window.changePageInclusao = changePageInclusao;
 window.changePageNavegacao = changePageNavegacao;
 window.changePageFaturamento = changePageFaturamento;
 window.prepararAbaEditar = prepararAbaEditar;
@@ -2822,6 +2866,8 @@ function renderPanoramaGeral() {
     });
 }
 
+
+
 function openPanoramaGeralModal() {
     const searchInput = document.getElementById('search-panorama');
     if (searchInput) searchInput.value = '';
@@ -2914,7 +2960,7 @@ function abrirDetalhePanorama(pacienteId) {
     openModal('modal-detalhe-panorama');
 }
 
-function abrirDetalheOciMedico(cdAtendimento) {
+function abrirDetalheOciInclusao(cdAtendimento) {
     const ociPac = db_oci_pacientes.find(p => p.cd_atendimento === cdAtendimento);
     if (ociPac) {
         abrirDetalhePanorama(ociPac.id);
@@ -2924,7 +2970,7 @@ function abrirDetalheOciMedico(cdAtendimento) {
 window.openPanoramaGeralModal = openPanoramaGeralModal;
 window.renderPanoramaGeral = renderPanoramaGeral;
 window.abrirDetalhePanorama = abrirDetalhePanorama;
-window.abrirDetalheOciMedico = abrirDetalheOciMedico;
+window.abrirDetalheOciInclusao = abrirDetalheOciInclusao;
 
 // 19b. Cancelamento de OCI dentro da janela de 2 horas
 function confirmarCancelamentoOci(ociId) {
@@ -2939,7 +2985,7 @@ function confirmarCancelamentoOci(ociId) {
     
     if (restMin <= 0) {
         alert('O prazo de 2 horas para cancelamento desta OCI já expirou.\nPara desfazer esta inclusão, entre em contato com o faturamento.');
-        renderMedicoView();
+        renderInclusaoView();
         return;
     }
     
@@ -2976,7 +3022,7 @@ function executarCancelamentoOci() {
     if (diffMin >= 120) {
         alert('O prazo de 2 horas expirou durante o preenchimento.\nO cancelamento não pode mais ser realizado.');
         closeModal('modal-cancelar-oci');
-        renderMedicoView();
+        renderInclusaoView();
         return;
     }
     
@@ -2994,7 +3040,7 @@ function executarCancelamentoOci() {
     saveDb('oci_db_soulmv', db_soulmv);
     
     closeModal('modal-cancelar-oci');
-    renderMedicoView();
+    renderInclusaoView();
     renderStats();
     
     alert(`✅ Inclusão de ${oci.nm_paciente} na OCI cancelada com sucesso!\nMotivo registrado: ${motivo}`);
@@ -3002,6 +3048,8 @@ function executarCancelamentoOci() {
 
 window.confirmarCancelamentoOci = confirmarCancelamentoOci;
 window.executarCancelamentoOci = executarCancelamentoOci;
+
+
 
 
 function renderConsolidadoRemessasOcis() {
