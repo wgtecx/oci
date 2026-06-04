@@ -202,10 +202,46 @@ const itemsPerPageNavegacao = 4;
 let currentPageFaturamento = 1;
 const itemsPerPageFaturamento = 3;
 
+// Funções de Controle de Tema (Light / Dark)
+function toggleTheme() {
+    const isDark = document.body.classList.contains('dark-theme');
+    if (isDark) {
+        document.body.classList.remove('dark-theme');
+        localStorage.setItem('oci_theme', 'light');
+    } else {
+        document.body.classList.add('dark-theme');
+        localStorage.setItem('oci_theme', 'dark');
+    }
+    updateThemeUI();
+}
+
+function updateThemeUI() {
+    const isDark = document.body.classList.contains('dark-theme');
+    const iconLight = document.getElementById('theme-icon-light');
+    const iconDark = document.getElementById('theme-icon-dark');
+    
+    if (iconLight && iconDark) {
+        if (isDark) {
+            iconLight.style.display = 'block';
+            iconDark.style.display = 'none';
+        } else {
+            iconLight.style.display = 'none';
+            iconDark.style.display = 'block';
+        }
+    }
+}
+
 // 3. Inicialização e Event Listeners
 document.addEventListener('DOMContentLoaded', () => {
     switchProfile('navegacao');
     renderStats();
+    
+    // Configura alternância de tema
+    const btnThemeToggle = document.getElementById('btn-theme-toggle');
+    if (btnThemeToggle) {
+        btnThemeToggle.addEventListener('click', toggleTheme);
+    }
+    updateThemeUI();
     
     // Configura botões de navegação de perfil
     document.querySelectorAll('.tab-btn').forEach(btn => {
