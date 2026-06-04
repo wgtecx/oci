@@ -1749,6 +1749,10 @@ function renderLotesRemessa() {
     const listRemessas = document.getElementById('lista-lotes-remessa');
     if (!listRemessas) return;
     
+    // Lê o campo de busca (pode não existir ainda na DOM)
+    const searchEl = document.getElementById('search-remessas');
+    const searchVal = searchEl ? searchEl.value.trim().toLowerCase() : '';
+    
     listRemessas.innerHTML = '';
     
     if (db_oci_remessas.length === 0) {
@@ -1756,7 +1760,37 @@ function renderLotesRemessa() {
         return;
     }
     
-    db_oci_remessas.forEach(r => {
+    // Filtra remessas com base na busca
+    const remessasFiltradas = db_oci_remessas.filter(r => {
+        if (!searchVal) return true; // sem filtro, mostra todas
+        
+        // 1. Verifica ID da remessa
+        if (r.id.toLowerCase().includes(searchVal)) return true;
+        
+        // 2. Verifica OCI vinculada à remessa
+        const ociDef = db_oci_definitions[r.oci_key];
+        if (ociDef) {
+            if (ociDef.nome.toLowerCase().includes(searchVal)) return true;
+            if (ociDef.codigo && ociDef.codigo.toLowerCase().includes(searchVal)) return true;
+        }
+        
+        // 3. Verifica nome de paciente com procedimento nesta remessa
+        const temPacienteMatch = db_oci_pacientes.some(p =>
+            p.procedimentos.some(proc => proc.id_remessa === r.id) &&
+            p.nm_paciente.toLowerCase().includes(searchVal)
+        );
+        if (temPacienteMatch) return true;
+        
+        return false;
+    });
+    
+    if (remessasFiltradas.length === 0) {
+        listRemessas.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 0.8rem; padding: 2rem 0;">Nenhuma remessa encontrada para "<strong>${searchVal}</strong>".</div>`;
+        return;
+    }
+    
+    remessasFiltradas.forEach(r => {
+
         let badgeClass = 'badge-info';
         let statusLabel = r.status;
         let acoesHtml = '';
