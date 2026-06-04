@@ -496,12 +496,16 @@ function renderProceduresChecklist(ociKey) {
     
     const oci = db_oci_definitions[ociKey];
     oci.procedimentos.forEach((proc, index) => {
+        const isObrigatorio = proc.obrigatorio !== false;
         const itemDiv = document.createElement('div');
         itemDiv.className = 'checklist-item';
         itemDiv.innerHTML = `
-            <input type="checkbox" id="proc-${index}" value="${proc.codigo}" checked>
+            <input type="checkbox" id="proc-${index}" value="${proc.codigo}" checked ${isObrigatorio ? 'disabled' : ''}>
             <div class="checklist-item-label">
-                <label for="proc-${index}"><strong>${proc.nome}</strong> (Qtd: ${proc.qtd})</label>
+                <label for="proc-${index}">
+                    <strong>${proc.nome}</strong> (Qtd: ${proc.qtd})
+                    ${isObrigatorio ? `<span style="color: var(--accent); font-size: 0.72rem; font-weight: 700; margin-left: 0.25rem;">[Obrigatório]</span>` : ''}
+                </label>
                 <span class="checklist-item-code">${proc.codigo} ${proc.exigeDiagnostico ? '<span style="color: var(--danger); font-size: 0.7rem; font-weight: 700;">[EXIGE DATA LAUDO ONCO]</span>' : ''}</span>
             </div>
         `;
@@ -535,6 +539,7 @@ function handleInsertOci(e) {
                 nome: proc.nome,
                 qtd: proc.qtd,
                 exigeDiagnostico: proc.exigeDiagnostico || false,
+                obrigatorio: proc.obrigatorio !== false,
                 status: 'Pendente', // Pendente, Agendado, Realizado
                 dt_solicitacao: getHoje(),
                 dt_execucao: '',
@@ -2407,11 +2412,13 @@ function adicionarProcedimentoTemporario() {
     const nomeInput = document.getElementById('proc-novo-nome');
     const qtdInput = document.getElementById('proc-nova-qtd');
     const oncoInput = document.getElementById('proc-novo-onco');
+    const obrigatorioInput = document.getElementById('proc-novo-obrigatorio');
     
     const codigo = codInput.value.trim();
     const nome = nomeInput.value.trim();
     const qtd = parseInt(qtdInput.value);
     const exigeDiagnostico = oncoInput.checked;
+    const obrigatorio = obrigatorioInput ? obrigatorioInput.checked : true;
     
     if (!codigo || !nome) {
         alert('Por favor, preencha o código e o nome do procedimento secundário.');
@@ -2428,7 +2435,8 @@ function adicionarProcedimentoTemporario() {
         codigo: codigo,
         nome: nome,
         qtd: qtd,
-        exigeDiagnostico: exigeDiagnostico
+        exigeDiagnostico: exigeDiagnostico,
+        obrigatorio: obrigatorio
     });
     
     // Limpa inputs
@@ -2436,6 +2444,9 @@ function adicionarProcedimentoTemporario() {
     nomeInput.value = '';
     qtdInput.value = '1';
     oncoInput.checked = false;
+    if (obrigatorioInput) {
+        obrigatorioInput.checked = true;
+    }
     
     renderTempProcedures();
 }
@@ -2457,11 +2468,15 @@ function renderTempProcedures() {
         item.style.justifyContent = 'space-between';
         item.style.alignItems = 'center';
         
+        const badgeObrigatorioHtml = proc.obrigatorio !== false
+            ? `<span style="color:var(--accent); font-size:0.7rem; font-weight:700; margin-left:0.25rem;">[OBRIGATÓRIO]</span>`
+            : `<span style="color:var(--text-muted); font-size:0.7rem; font-weight:500; margin-left:0.25rem;">[OPCIONAL]</span>`;
+            
         item.innerHTML = `
             <div class="checklist-item-label">
                 <strong>${proc.nome}</strong> (Qtd: ${proc.qtd})
                 <span class="checklist-item-code">
-                    ${proc.codigo} ${proc.exigeDiagnostico ? '<span style="color:var(--danger); font-size:0.7rem; font-weight:700;">[EXIGE DATA LAUDO ONCO]</span>' : ''}
+                    ${proc.codigo} ${proc.exigeDiagnostico ? '<span style="color:var(--danger); font-size:0.7rem; font-weight:700;">[EXIGE DATA LAUDO ONCO]</span>' : ''} ${badgeObrigatorioHtml}
                 </span>
             </div>
             <button type="button" class="btn btn-sm" style="font-size:0.6rem; padding:0.15rem 0.3rem; background-color:var(--danger-glow); color:var(--danger); border-color:var(--danger);" onclick="removerProcedimentoTemporario(${index})">

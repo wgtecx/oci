@@ -625,6 +625,11 @@ tr:hover td {
     accent-color: var(--accent);
 }
 
+.checklist-item input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
 .checklist-item-label {
     font-size: 0.875rem;
 }
