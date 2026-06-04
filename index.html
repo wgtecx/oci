@@ -7,6 +7,14 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('oci_theme') || 'light';
+            if (savedTheme === 'dark') {
+                document.body.classList.add('dark-theme');
+            }
+        })();
+    </script>
 
     <!-- Header -->
     <header>
@@ -31,9 +39,17 @@
         </div>
 
         <!-- Botão Panorama Geral (Acessível a todos) -->
-        <button class="btn btn-sm" id="btn-panorama-geral" style="margin-left: auto; margin-right: 1rem; background-color: var(--accent-glow); color: var(--accent); border-color: var(--accent); font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="openPanoramaGeralModal()">
+        <button class="btn btn-sm" id="btn-panorama-geral" style="margin-left: auto; margin-right: 0.5rem; background-color: var(--accent-glow); color: var(--accent); border-color: var(--accent); font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem;" onclick="openPanoramaGeralModal()">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" style="margin-top:-1px;"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/></svg>
             Panorama Geral OCI
+        </button>
+
+        <!-- Botão Alternar Tema (Claro/Escuro) -->
+        <button class="btn btn-sm" id="btn-theme-toggle" style="background-color: var(--bg-tertiary); border-color: var(--border-color); color: var(--text-primary); padding: 0.5rem; border-radius: 50%; width: 2.25rem; height: 2.25rem; display: inline-flex; align-items: center; justify-content: center; margin-right: 1rem; cursor: pointer; flex-shrink: 0;" title="Alternar Tema (Claro/Escuro)">
+            <!-- Ícone Sol (mostrado no tema Dark) -->
+            <svg id="theme-icon-light" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display: none;"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58a.996.996 0 00-1.41 0 .996.996 0 000 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37a.996.996 0 00-1.41 0 .996.996 0 000 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96a.996.996 0 000-1.41.996.996 0 00-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.01a.996.996 0 000-1.41.996.996 0 00-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+            <!-- Ícone Lua (mostrado no tema Light) -->
+            <svg id="theme-icon-dark" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="display: block;"><path d="M12.3 2c-3.8-.2-7.5 1.7-9.3 5.2-2.1 4 1.1 9 5.8 9 2.5 0 4.9-1.3 6.2-3.4 1-1.6.4-3.7-1.3-4.5-1.5-.7-2.3-2.3-2-4 .3-1.6-1-3.1-2.6-3.1 0 .8-.5.8-.8.8z"/></svg>
         </button>
 
         <!-- Informações do Usuário Ativo -->

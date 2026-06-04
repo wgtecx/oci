@@ -59,11 +59,20 @@ Acessível por todos os perfis a qualquer momento no cabeçalho superior:
 
 ---
 
+## 🌓 Opção de Tema (Claro / Escuro)
+
+A plataforma conta com suporte nativo a temas visuais:
+* **Alternância Rápida**: Botão no cabeçalho superior com ícones de Sol ☀️ e Lua 🌙 que realiza a mudança instantânea de tema através de transições fluidas e suaves.
+* **Persistência de Preferência**: O tema selecionado é salvo no `localStorage` do navegador para manter o estado entre recarregamentos e acessos futuros.
+* **Carregamento Otimizado**: Script de detecção inline no carregamento da página para aplicar o tema correto antes de renderizar os elementos visuais, evitando qualquer flash de tela clara.
+
+---
+
 ## 📂 Arquivos do Projeto
 
-* `index.html`: Layout SPA estruturado em seções HTML5, tabelas, modais e formulários (Navegação de Cuidados e Faturamento SUS).
-* `style.css`: Estilo com design visual premium em Light Mode, fontes modernas (Plus Jakarta Sans), efeitos de glassmorphism, responsividade e paginação.
-* `app.js`: Motor de regras da plataforma (inclusão de pacientes, navegação e faturamento), persistência LocalStorage, paginação, filtros de períodos, geração de lotes e exportação posicional de remessas SIA/SUS.
+* `index.html`: Layout SPA estruturado em seções HTML5, tabelas, modais, formulários de fluxo e script de controle inicial de tema.
+* `style.css`: Estilo com design visual premium com suporte a Light e Dark Mode, fontes modernas (Plus Jakarta Sans), efeitos de glassmorphism, responsividade, transições dinâmicas de cores e paginação.
+* `app.js`: Motor de regras da plataforma (inclusão de pacientes, navegação, faturamento e alternância de temas), persistência LocalStorage, paginação, filtros de períodos, geração de lotes e exportação posicional de remessas SIA/SUS.
 * `Logo_Feluma.png`: Logomarca institucional exibida no cabeçalho e na tela de login.
 
 ---
