@@ -40,9 +40,9 @@ Ao abrir o protótipo, você verá uma tela de login moderna com controle de ace
 * **Alerta de Pendências**: Opção de sinalizar pendências de preenchimento ou dados faltantes diretamente para a equipe de Navegação por meio de um modal descritivo (Alerta de Pendências), bloqueando o faturamento provisoriamente.
 * **Gerenciador de Tabelas OCI**: Painel para cadastrar e editar linhas OCI ativas e associar procedimentos secundários personalizados.
 * **Controle de Lotes de Remessa (SUS)**:
-  * **Criação de Remessa**: Consolidar exames faturados em lotes de faturamento SUS.
+  * **Criação de Remessa**: Consolidar exames faturados em lotes de faturamento SUS. Cada lote de remessa é **exclusivo por OCI (Linha de Cuidado)**, impedindo a mistura de exames de naturezas clínicas diferentes. Ao criar ou abrir um lote, o sistema filtra dinamicamente os pacientes compatíveis.
   * **Regra de Bloqueio de Fechamento**: Impede o fechamento do lote se houver exames inacabados ou não faturados.
-  * **Transferência de Lotes**: Permite transferir a conta do paciente com pendências para outro lote (aberto ou novo) para não atrasar o repasse dos demais exames concluídos.
+  * **Transferência de Lotes**: Permite transferir a conta do paciente com pendências para outro lote compatível com a **mesma OCI** (aberto ou novo) para não atrasar o repasse dos demais exames concluídos.
   * **Exportação DATASUS**: Geração do arquivo texto posicional de faturamento SUS no layout posicional da portaria do APAC Magnético (`AM310001[COMP].TXT`).
   * **Simulador de Auditoria SUS**: Permite simular a aprovação (libera o repasse) ou rejeição total do lote (todas as contas retornam à fila com status de Glosa).
   * **Consolidado OCI**: Relatório gerencial de exames agrupados por OCI com metadados detalhados de Paciente, Procedimento, Data Agendamento, Data Realização, Data Inclusão Remessa, Data Envio Remessa e Usuário/Operadores. Possui rolagem vertical interna individual por OCI para melhor legibilidade visual e prevenção de erros de timezone no parseamento de datas.
