@@ -186,6 +186,19 @@ let db_oci_pacientes = getDb('oci_db_pacientes', []);
 let db_oci_remessas = getDb('oci_db_remessas', []); // Banco de remessas/faturas
 let db_oci_definitions = getDb('oci_db_definitions', OCI_DEFINITIONS);
 
+// Higienização para garantir que remessas legadas tenham oci_key com base nos exames associados
+let db_oci_remessas_migrated = false;
+db_oci_remessas.forEach(r => {
+    if (r.oci_key === undefined) {
+        const pac = db_oci_pacientes.find(p => p.procedimentos.some(proc => proc.id_remessa === r.id));
+        r.oci_key = pac ? pac.oci_key : null;
+        db_oci_remessas_migrated = true;
+    }
+});
+if (db_oci_remessas_migrated) {
+    saveDb('oci_db_remessas', db_oci_remessas);
+}
+
 // Variáveis Globais de Operação
 let currentProfile = 'navegacao';
 let activeAtendimento = null; // Para o modal do médico
@@ -1097,8 +1110,10 @@ function faturarProcedimento(ociPacienteId, index) {
     optNovo.textContent = `[Nova Remessa] ${loteNovoNum}`;
     loteSelect.appendChild(optNovo);
     
-    // Opções de lotes em digitação
-    const lotesAbertos = db_oci_remessas.filter(r => r.status === 'Em Digitação');
+    // Opções de lotes em digitação filtrados pela OCI do paciente
+    const lotesAbertos = db_oci_remessas.filter(r => 
+        r.status === 'Em Digitação' && (r.oci_key === null || r.oci_key === oci.oci_key)
+    );
     lotesAbertos.forEach(r => {
         const optAberto = document.createElement('option');
         optAberto.value = r.id;
@@ -1205,8 +1220,10 @@ function faturarTodosProcedimentos(ociPacienteId) {
         optNovo.textContent = `[Nova Remessa] ${loteNovoNum}`;
         loteSelect.appendChild(optNovo);
         
-        // Opções de lotes em digitação
-        const lotesAbertos = db_oci_remessas.filter(r => r.status === 'Em Digitação');
+        // Opções de lotes em digitação filtrados pela OCI do paciente
+        const lotesAbertos = db_oci_remessas.filter(r => 
+            r.status === 'Em Digitação' && (r.oci_key === null || r.oci_key === oci.oci_key)
+        );
         lotesAbertos.forEach(r => {
             const optAberto = document.createElement('option');
             optAberto.value = r.id;
@@ -1261,7 +1278,7 @@ function handleSaveEnviarSus(e) {
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
     
-    // Cria a remessa se não existir
+    // Cria a remessa se não existir ou associa a oci_key se estiver nula
     const remessaJaExiste = db_oci_remessas.find(r => r.id === remessaId);
     if (!remessaJaExiste) {
         const novaRemessa = {
@@ -1271,9 +1288,12 @@ function handleSaveEnviarSus(e) {
             qtd_contas: 0,
             qtd_procedimentos: 0,
             valor_total: 0,
-            status: 'Em Digitação'
+            status: 'Em Digitação',
+            oci_key: oci.oci_key
         };
         db_oci_remessas.push(novaRemessa);
+    } else if (remessaJaExiste.oci_key === null || remessaJaExiste.oci_key === undefined) {
+        remessaJaExiste.oci_key = oci.oci_key;
     }
     
     saveDb('oci_db_remessas', db_oci_remessas);
@@ -1534,66 +1554,119 @@ function openGerarRemessaModal() {
         optAberto.textContent = `[Lote Aberto] ${r.id} (Comp: ${r.competencia})`;
         loteSelect.appendChild(optAberto);
     });
+
+    // Popula o select de filtro de OCI com as OCIs de pacientes com exames elegíveis
+    const ociSelect = document.getElementById('remessa-oci-filtro');
+    ociSelect.innerHTML = '';
+    
+    const ociKeysElegiveis = new Set();
+    db_oci_pacientes.forEach(p => {
+        const examesFaturados = p.procedimentos.filter(proc => 
+            (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') && !proc.id_remessa
+        );
+        if (examesFaturados.length > 0) {
+            ociKeysElegiveis.add(p.oci_key);
+        }
+    });
+
+    if (ociKeysElegiveis.size === 0) {
+        const opt = document.createElement('option');
+        opt.value = '';
+        opt.textContent = '-- Nenhuma OCI com exames faturados --';
+        ociSelect.appendChild(opt);
+    } else {
+        ociKeysElegiveis.forEach(key => {
+            const def = db_oci_definitions[key];
+            if (def) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = `${def.codigo} - ${def.nome}`;
+                ociSelect.appendChild(opt);
+            }
+        });
+    }
+
+    // Função de renderização de pacientes elegíveis para a OCI selecionada
+    const renderPacientesElegiveis = (ociKeySelected) => {
+        const listCheck = document.getElementById('remessa-pacientes-checklist');
+        listCheck.innerHTML = '';
+        
+        if (!ociKeySelected) {
+            listCheck.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem 0; grid-column: 1/-1;">Nenhuma OCI selecionada.</p>`;
+            return;
+        }
+        
+        let pacientesElegiveis = [];
+        db_oci_pacientes.forEach(p => {
+            if (p.oci_key === ociKeySelected) {
+                const examesFaturados = p.procedimentos.filter(proc => 
+                    (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') && !proc.id_remessa
+                );
+                if (examesFaturados.length > 0) {
+                    const remessaAbertaPaciente = getRemessaAbertaDoPaciente(p);
+                    pacientesElegiveis.push({
+                        paciente: p,
+                        exames: examesFaturados,
+                        remessaExistente: remessaAbertaPaciente
+                    });
+                }
+            }
+        });
+        
+        if (pacientesElegiveis.length === 0) {
+            listCheck.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem 0; grid-column: 1/-1;">Nenhuma conta paciente desta OCI com exames faturados aguardando remessa.</p>`;
+        } else {
+            pacientesElegiveis.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'checklist-item';
+                const remessaTag = item.remessaExistente
+                    ? `<span style="color:var(--accent);font-weight:700;">↪ Remessa existente: ${item.remessaExistente.id}</span>`
+                    : '';
+                itemDiv.innerHTML = `
+                    <input type="checkbox" id="rem-pac-${index}" value="${item.paciente.id}" checked>
+                    <div class="checklist-item-label">
+                        <label for="rem-pac-${index}"><strong>${item.paciente.nm_paciente}</strong> (${item.paciente.id})</label>
+                        <span class="checklist-item-code">
+                            ${item.paciente.oci_nome} • <strong>${item.exames.length} novo(s) exame(s) prontos</strong> ${remessaTag}
+                        </span>
+                    </div>
+                `;
+                listCheck.appendChild(itemDiv);
+            });
+        }
+    };
     
     // Ao alterar o lote, sincroniza a competência se for lote existente
     loteSelect.onchange = () => {
         const selectedOpt = loteSelect.selectedOptions[0];
         if (selectedOpt && selectedOpt.dataset.isNew === 'false') {
+            const loteId = selectedOpt.value;
+            const lote = db_oci_remessas.find(r => r.id === loteId);
+            
             compSelect.value = selectedOpt.dataset.competencia;
             compSelect.disabled = true;
+            
+            if (lote && lote.oci_key) {
+                ociSelect.value = lote.oci_key;
+                ociSelect.disabled = true;
+                renderPacientesElegiveis(lote.oci_key);
+            } else {
+                ociSelect.disabled = false;
+                renderPacientesElegiveis(ociSelect.value);
+            }
         } else {
             compSelect.disabled = false;
+            ociSelect.disabled = false;
+            renderPacientesElegiveis(ociSelect.value);
         }
     };
+
+    ociSelect.onchange = () => {
+        renderPacientesElegiveis(ociSelect.value);
+    };
     
-    // Inicializa estado do campo competência
-    compSelect.disabled = false;
-    
-    // Listar pacientes com itens faturados elegíveis (sem remessa)
-    const listCheck = document.getElementById('remessa-pacientes-checklist');
-    listCheck.innerHTML = '';
-    
-    let pacientesElegiveis = [];
-    
-    db_oci_pacientes.forEach(p => {
-        // Verifica se tem algum procedimento com status_faturamento == 'Faturado' ou 'Reapresentado' E sem id_remessa (a nível de procedimento)
-        const examesFaturados = p.procedimentos.filter(proc => 
-            (proc.status_faturamento === 'Faturado' || proc.status_faturamento === 'Reapresentado') && !proc.id_remessa
-        );
-        
-        if (examesFaturados.length > 0) {
-            // Verifica se o paciente já tem uma remessa aberta (em digitação) para sugerir como destino
-            const remessaAbertaPaciente = getRemessaAbertaDoPaciente(p);
-            pacientesElegiveis.push({
-                paciente: p,
-                exames: examesFaturados,
-                remessaExistente: remessaAbertaPaciente
-            });
-        }
-    });
-    
-    if (pacientesElegiveis.length === 0) {
-        listCheck.innerHTML = `<p style="color: var(--text-muted); font-size: 0.8rem; padding: 0.5rem 0; grid-column: 1/-1;">Nenhuma conta paciente OCI com exames faturados aguardando remessa.</p>`;
-    } else {
-        pacientesElegiveis.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'checklist-item';
-            const remessaTag = item.remessaExistente
-                ? `<span style="color:var(--primary);font-weight:700;">↪ Remessa existente: ${item.remessaExistente.id}</span>`
-                : '';
-            itemDiv.innerHTML = `
-                <input type="checkbox" id="rem-pac-${index}" value="${item.paciente.id}" checked>
-                <div class="checklist-item-label">
-                    <label for="rem-pac-${index}"><strong>${item.paciente.nm_paciente}</strong> (${item.paciente.id})</label>
-                    <span class="checklist-item-code">
-                        ${item.paciente.oci_nome} • <strong>${item.exames.length} novo(s) exame(s) prontos</strong> ${remessaTag}
-                    </span>
-                </div>
-            `;
-            listCheck.appendChild(itemDiv);
-        });
-    }
-    
+    // Inicializa estado do campo competência e OCI
+    loteSelect.onchange();
     openModal('modal-gerar-remessa');
 }
 
@@ -1601,6 +1674,7 @@ function handleSaveRemessa(e) {
     e.preventDefault();
     const remessaId = document.getElementById('remessa-id-select').value;
     const competencia = document.getElementById('remessa-competencia-input').value;
+    const ociKey = document.getElementById('remessa-oci-filtro').value;
     
     // Coleta pacientes selecionados
     const pacientesSelecionados = [];
@@ -1641,8 +1715,7 @@ function handleSaveRemessa(e) {
     
     saveDb('oci_db_pacientes', db_oci_pacientes);
     
-    // Cria a nova remessa no banco apenas se ela ainda não existir
-    // (pacientes com remessa existente aberta já foram redirecionados acima)
+    // Cria a nova remessa no banco apenas se ela ainda não existir ou atualiza a oci_key se nula
     const remessaJaExiste = db_oci_remessas.find(r => r.id === remessaId);
     if (!remessaJaExiste) {
         const novaRemessa = {
@@ -1652,9 +1725,12 @@ function handleSaveRemessa(e) {
             qtd_contas: 0,
             qtd_procedimentos: 0,
             valor_total: 0,
-            status: 'Em Digitação'
+            status: 'Em Digitação',
+            oci_key: ociKey || null
         };
         db_oci_remessas.push(novaRemessa);
+    } else if (remessaJaExiste.oci_key === null || remessaJaExiste.oci_key === undefined) {
+        remessaJaExiste.oci_key = ociKey || null;
     }
     
     saveDb('oci_db_remessas', db_oci_remessas);
@@ -2126,8 +2202,10 @@ function openTransferirModal(pacienteId, loteOrigemId) {
     const containerOpcoes = document.getElementById('transf-opcoes-lote');
     containerOpcoes.innerHTML = '';
     
-    // Lista outros lotes em digitação
-    const outrosLotes = db_oci_remessas.filter(r => r.status === 'Em Digitação' && r.id !== loteOrigemId);
+    // Lista outros lotes em digitação que pertençam à mesma OCI do paciente
+    const outrosLotes = db_oci_remessas.filter(r => 
+        r.status === 'Em Digitação' && r.id !== loteOrigemId && (r.oci_key === null || r.oci_key === paciente.oci_key)
+    );
     
     // Opção 1: Criar novo lote para transferência
     const divNovo = document.createElement('label');
@@ -2158,6 +2236,9 @@ function handleSaveTransferencia(e) {
     const loteOrigemId = document.getElementById('transf-origem-id').value;
     const destinoOpt = document.querySelector('input[name="transf_destino"]:checked').value;
     
+    const paciente = db_oci_pacientes.find(p => p.id === pacienteId);
+    if (!paciente) return;
+    
     let loteDestinoId = '';
     
     if (destinoOpt === 'NOVO') {
@@ -2173,11 +2254,16 @@ function handleSaveTransferencia(e) {
             qtd_contas: 0,
             qtd_procedimentos: 0,
             valor_total: 0,
-            status: 'Em Digitação'
+            status: 'Em Digitação',
+            oci_key: paciente.oci_key
         };
         db_oci_remessas.push(novaRemessa);
     } else {
         loteDestinoId = destinoOpt;
+        const remessaDestinoObj = db_oci_remessas.find(r => r.id === loteDestinoId);
+        if (remessaDestinoObj && (remessaDestinoObj.oci_key === null || remessaDestinoObj.oci_key === undefined)) {
+            remessaDestinoObj.oci_key = paciente.oci_key;
+        }
     }
     
     // Faz a transferência: move o id_remessa de todos os procedimentos do paciente que estão na remessa de origem
