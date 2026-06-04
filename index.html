@@ -20,16 +20,12 @@
 
         <!-- Seletor de Perfis -->
         <div class="profile-tabs">
-            <button class="tab-btn active" data-profile="medico">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z"/></svg>
-                Médico
-            </button>
-            <button class="tab-btn" data-profile="navegacao">
+            <button class="tab-btn active" data-profile="navegacao">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2L2 22h20L12 2zm0 3.99L19.53 19H4.47L12 5.99zM13 16h-2v2h2v-2zm0-6h-2v4h2v-4z"/></svg>
                 Navegação
             </button>
             <button class="tab-btn" data-profile="faturamento">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2 .9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21 18v1c0 1.1-.9 2-2 2H5c-1.11 0-2-.9-2-2V5c0-1.1.89-2 2-2h14c1.1 0 2 .9 2 2v1h-9c-1.11 0-2-.9-2 2v8c0 1.1.89 2 2 2h9zm-9-2h10V8H12v8zm4-2.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
                 Faturamento
             </button>
         </div>
@@ -42,121 +38,128 @@
 
         <!-- Informações do Usuário Ativo -->
         <div class="user-badge">
-            <div class="user-avatar" id="avatar-sigla">DR</div>
+            <div class="user-avatar" id="avatar-sigla">AF</div>
             <div class="user-info">
-                <span class="user-name">Dr. Fernando Silva</span>
-                <span class="user-role">Médico Prestador</span>
+                <span class="user-name">Aline Fonseca</span>
+                <span class="user-role">Navegação de Cuidados</span>
             </div>
             <button class="btn btn-sm btn-logout" id="btn-logout" style="margin-left: 0.75rem; background-color: var(--danger-glow); color: var(--danger); border-color: var(--danger); font-size: 0.7rem; padding: 0.25rem 0.5rem;">
                 Sair
             </button>
-        </div>
+        </div>   </div>
     </header>
 
     <!-- Main Content -->
     <main>
         
         <!-- VISÃO 1: MÉDICO -->
-        <section id="view-medico" class="view-section active">
-            <div class="section-header">
-                <div class="section-title">
-                    <h2>Meus Atendimentos</h2>
-                    <p>Selecione um atendimento realizado no SoulMV (Oracle) para incluir o paciente em uma linha de cuidado OCI do SUS.</p>
-                </div>
-            </div>
-
-            <!-- Stats Rápidos -->
-            <div class="stats-grid">
-                <div class="stat-card blue">
-                    <div class="stat-icon">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-                    </div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="stat-medico-pendentes">0</div>
-                        <div class="stat-label">Atendimentos Sem OCI</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Filtros -->
-            <div class="actions-bar">
-                <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
-                    <input type="text" id="search-medico" class="search-input" placeholder="Buscar por paciente ou atendimento..." oninput="resetPageMedicoAndRender()">
-                    <div style="display:inline-flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
-                        <label for="medico-date-start">Período de:</label>
-                        <input type="date" id="medico-date-start" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageMedicoAndRender()">
-                        <label for="medico-date-end">até:</label>
-                        <input type="date" id="medico-date-end" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageMedicoAndRender()">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Tabela de Atendimentos -->
-            <div class="table-container">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Nº Atendimento (SoulMV)</th>
-                            <th>Unidade</th>
-                            <th>Data Atend.</th>
-                            <th>Prontuário</th>
-                            <th>Paciente</th>
-                            <th>Especialidade</th>
-                            <th>Status OCI</th>
-                            <th>Ações</th>
-                        </tr>
-                    </thead>
-                    <tbody id="table-medico-body">
-                        <!-- Gerado Dinamicamente -->
-                    </tbody>
-                </table>
-            </div>
-            <!-- Paginação do Médico -->
-            <div id="medico-pagination" class="pagination-container">
-                <!-- Gerado dinamicamente via JS -->
-            </div>
-        </section>
-
         <!-- VISÃO 2: NAVEGAÇÃO -->
-        <section id="view-navegacao" class="view-section">
+        <section id="view-navegacao" class="view-section active">
             <div class="section-header">
                 <div class="section-title">
                     <h2>Navegação de Pacientes (Linha de Cuidado OCI)</h2>
-                    <p>Acompanhe os procedimentos solicitados pelos médicos, realize os agendamentos e registre a data de conclusão.</p>
+                    <p>Gerencie a inclusão de novos pacientes a partir de atendimentos do SoulMV e acompanhe as linhas de cuidado ativas.</p>
                 </div>
             </div>
 
-            <div class="stats-grid">
-                <div class="stat-card info">
-                    <div class="stat-icon">
-                        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+            <!-- Sub-abas da Navegação -->
+            <div class="sub-tabs" style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 2px solid var(--border-color); padding-bottom: 0.5rem;">
+                <button class="btn btn-sm sub-tab-btn active" id="subtab-btn-acompanhamento" onclick="switchNavegacaoTab('acompanhamento')" style="font-weight: 700;">
+                    📋 Pacientes em Acompanhamento
+                </button>
+                <button class="btn btn-sm sub-tab-btn" id="subtab-btn-inclusao" onclick="switchNavegacaoTab('inclusao')" style="font-weight: 700;">
+                    ➕ Incluir Paciente (SoulMV)
+                </button>
+            </div>
+
+            <!-- SUB-ABA 1: ACOMPANHAMENTO (KANBAN) -->
+            <div id="subtab-content-acompanhamento" class="subtab-content">
+                <div class="stats-grid">
+                    <div class="stat-card info">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="stat-navegacao-ativas">0</div>
+                            <div class="stat-label">Pacientes Ativos em OCI</div>
+                        </div>
                     </div>
-                    <div class="stat-info">
-                        <div class="stat-value" id="stat-navegacao-ativas">0</div>
-                        <div class="stat-label">Pacientes Ativos em OCI</div>
+                </div>
+
+                <div class="actions-bar">
+                    <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                        <input type="text" id="search-navegacao" class="search-input" placeholder="Buscar por paciente ou código OCI..." oninput="resetPageNavegacaoAndRender()">
+                        <div style="display:inline-flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+                            <label for="navegacao-date-start">Inclusão OCI de:</label>
+                            <input type="date" id="navegacao-date-start" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageNavegacaoAndRender()">
+                            <label for="navegacao-date-end">até:</label>
+                            <input type="date" id="navegacao-date-end" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageNavegacaoAndRender()">
+                        </div>
                     </div>
+                </div>
+
+                <!-- Grade de Cartões de Navegação -->
+                <div class="kanban-board" id="navegacao-cards">
+                    <!-- Gerado Dinamicamente -->
+                </div>
+                <!-- Paginação da Navegação -->
+                <div id="navegacao-pagination" class="pagination-container">
+                    <!-- Gerado dinamicamente via JS -->
                 </div>
             </div>
 
-            <div class="actions-bar">
-                <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
-                    <input type="text" id="search-navegacao" class="search-input" placeholder="Buscar por paciente ou código OCI..." oninput="resetPageNavegacaoAndRender()">
-                    <div style="display:inline-flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
-                        <label for="navegacao-date-start">Inclusão OCI de:</label>
-                        <input type="date" id="navegacao-date-start" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageNavegacaoAndRender()">
-                        <label for="navegacao-date-end">até:</label>
-                        <input type="date" id="navegacao-date-end" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageNavegacaoAndRender()">
+            <!-- SUB-ABA 2: INCLUSÃO (ATENDIMENTOS SOULMV) -->
+            <div id="subtab-content-inclusao" class="subtab-content" style="display: none;">
+                <div class="stats-grid">
+                    <div class="stat-card blue">
+                        <div class="stat-icon">
+                            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                        </div>
+                        <div class="stat-info">
+                            <div class="stat-value" id="stat-inclusao-pendentes">0</div>
+                            <div class="stat-label">Atendimentos Sem OCI</div>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Grade de Cartões de Navegação -->
-            <div class="kanban-board" id="navegacao-cards">
-                <!-- Gerado Dinamicamente -->
-            </div>
-            <!-- Paginação da Navegação -->
-            <div id="navegacao-pagination" class="pagination-container">
-                <!-- Gerado dinamicamente via JS -->
+                <!-- Filtros -->
+                <div class="actions-bar">
+                    <div class="filters" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+                        <input type="text" id="search-inclusao" class="search-input" placeholder="Buscar por paciente, atendimento ou médico..." oninput="resetPageInclusaoAndRender()">
+                        <div style="display:inline-flex; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--text-secondary);">
+                            <label for="inclusao-date-start">Período de:</label>
+                            <input type="date" id="inclusao-date-start" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageInclusaoAndRender()">
+                            <label for="inclusao-date-end">até:</label>
+                            <input type="date" id="inclusao-date-end" class="select-input" style="padding:0.4rem 0.6rem;" onchange="resetPageInclusaoAndRender()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabela de Atendimentos -->
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nº Atendimento (SoulMV)</th>
+                                <th>Unidade</th>
+                                <th>Data Atend.</th>
+                                <th>Prontuário</th>
+                                <th>Paciente</th>
+                                <th>Médico Atendimento</th>
+                                <th>Especialidade</th>
+                                <th>Status OCI</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-inclusao-body">
+                            <!-- Gerado Dinamicamente -->
+                        </tbody>
+                    </table>
+                </div>
+                <!-- Paginação da Inclusão -->
+                <div id="inclusao-pagination" class="pagination-container">
+                    <!-- Gerado dinamicamente via JS -->
+                </div>
             </div>
         </section>
 
@@ -261,12 +264,12 @@
         <button class="btn btn-sm" style="margin-top:0.75rem; background-color:var(--danger-glow); color:#f87171; border-color:var(--danger);" onclick="resetSimulador()">Reiniciar Protótipo (Limpar Dados)</button>
     </footer>
 
-    <!-- MODAL 1: INCLUSÃO DE OCI (MÉDICO) -->
+    <!-- MODAL 1: INCLUSÃO DE OCI (NAVEGAÇÃO) -->
     <div id="modal-oci" class="modal-overlay">
         <div class="modal-content">
             <div class="modal-header">
                 <div class="modal-title">
-                    <h3>Prescrever Oferta de Cuidado Integrado (OCI)</h3>
+                    <h3>Iniciar Oferta de Cuidado Integrado (OCI)</h3>
                 </div>
                 <button class="modal-close">&times;</button>
             </div>
@@ -291,7 +294,7 @@
                             <span id="modal-paciente-cns">00000000000000</span>
                         </div>
                     </div>
-
+ 
                     <!-- Seleção do tipo de OCI -->
                     <div class="form-group">
                         <label for="select-oci-tipo">Selecionar Linha de Cuidado OCI</label>
@@ -300,6 +303,12 @@
                         </select>
                     </div>
 
+                    <!-- Médico Responsável pela Inclusão -->
+                    <div class="form-group">
+                        <label for="input-medico-responsavel">Médico Responsável pela Inclusão <span style="color: var(--danger);">*</span></label>
+                        <input type="text" id="input-medico-responsavel" class="select-input" placeholder="Informe o médico responsável..." required style="width:100%;">
+                    </div>
+ 
                     <!-- Checklist de Procedimentos -->
                     <div class="form-group">
                         <label>Checklist de Procedimentos Secundários</label>
@@ -318,7 +327,7 @@
             </form>
         </div>
     </div>
-
+ 
     <!-- MODAL 2: ACOMPANHAMENTO DA NAVEGAÇÃO -->
     <div id="modal-acompanhar" class="modal-overlay">
         <div class="modal-content">
@@ -338,12 +347,16 @@
                         <label>Linha de Cuidado</label>
                         <span id="acomp-oci-nome">-</span>
                     </div>
-                    <div class="info-item" style="grid-column: span 2;">
-                        <label>Data de Inclusão da OCI</label>
+                    <div class="info-item">
+                        <label>Data de Inclusão</label>
                         <span id="acomp-dt-criacao">-</span>
                     </div>
+                    <div class="info-item">
+                        <label>Médico Responsável</label>
+                        <span id="acomp-medico-responsavel">-</span>
+                    </div>
                 </div>
-
+ 
                 <div style="font-size:0.875rem; font-weight:700; margin-bottom:0.75rem; color:var(--text-secondary); text-transform:uppercase;">
                     Procedimentos da Linha
                 </div>
@@ -723,7 +736,6 @@
                 <div class="form-group">
                     <label for="login-username">Selecione seu Perfil de Acesso</label>
                     <select id="login-username" class="select-input" required style="width: 100%;">
-                        <option value="medico">Médico (Dr. Fernando Silva)</option>
                         <option value="navegacao">Navegação (Aline Fonseca)</option>
                         <option value="faturamento">Faturamento (Lucas Mendes)</option>
                     </select>
@@ -873,7 +885,7 @@
                 <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:1.25rem;">
                     Abaixo estão consolidadas todas as contas de pacientes e procedimentos secundários enviados em lotes de remessa SUS, agrupados por linha de cuidado (OCI).
                 </p>
-                <div id="consolidado-ocis-container" style="display: flex; flex-direction: column; gap: 1.25rem; max-height: 450px; overflow-y: auto;">
+                <div id="consolidado-ocis-container" style="display: flex; flex-direction: column; gap: 1.25rem; max-height: 600px; overflow-y: auto;">
                     <!-- Gerado dinamicamente via JS -->
                 </div>
             </div>
